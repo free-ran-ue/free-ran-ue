@@ -1,4 +1,4 @@
-.PHONY: all bin console console-init docker ns-up ns-down ns-ran ns-ue dc-ns-up dc-ns-down dc-ns-mran dc-ns-sran dc-ns-ue dci-ns-up dci-ns-down dci-ns-mran dci-ns-sran dci-ns-ue dci-ns-iperf-a dci-ns-iperf-b
+.PHONY: all bin console console-init ns-up ns-down ns-ran ns-ue dc-ns-up dc-ns-down dc-ns-mran dc-ns-sran dc-ns-ue dci-ns-up dci-ns-down dci-ns-mran dci-ns-sran dci-ns-ue dci-ns-iperf-a dci-ns-iperf-b
 
 .DEFAULT_GOAL := bin
 
@@ -20,10 +20,6 @@ console-init:
 	mkdir -p build/console
 	cp -r console/frontend/dist/* build/console/
 	rm -rf console/frontend/dist
-
-# Build docker image
-docker:
-	docker build -f docker/Dockerfile -t free-ran-ue:latest .
 
 # Basic namespace
 ns-up:
