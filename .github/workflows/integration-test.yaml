@@ -13,7 +13,7 @@ env:
   SOURCE_REPO_URL: https://github.com/${{ github.repository }}.git
   SOURCE_REPO_NAME: free-ran-ue
   IMAGE_NAME: alonza0314/free-ran-ue
-  IMAGE_TAG: test
+  IMAGE_TAG: latest
 
 jobs:
   integration-test:
