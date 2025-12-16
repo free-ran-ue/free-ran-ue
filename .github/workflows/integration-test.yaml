@@ -7,6 +7,13 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+env:
+  IMAGE_NAME: alonza0314/free-ran-ue
+  IMAGE_TAG: latest
+  COMPOSE_REPO_URL: https://github.com/free-ran-ue/fru-compose.git
+  COMPOSE_REPO_NAME: fru-compose
+  SOURCE_REPO_NAME: free-ran-ue
+
 jobs:
   integration-test:
     runs-on: self-hosted
@@ -22,13 +29,18 @@ jobs:
           jq --version
 
       - name: Build free-ran-ue image
-        run: make docker
+        run: |
+          cd ..
+          git clone $COMPOSE_REPO_URL
+          mv ../$SOURCE_REPO_NAME $COMPOSE_REPO_NAME/$SOURCE_REPO_NAME
+          cd $COMPOSE_REPO_NAME
+          make
 
       - name: Test free-ran-ue image
         run: |
           docker images
-          docker run --rm free-ran-ue:latest ls /free-ran-ue/free-ran-ue
-          docker run --rm free-ran-ue:latest ls /free-ran-ue/console
+          docker run --rm $IMAGE_NAME:$IMAGE_TAG ls /$SOURCE_REPO_NAME/free-ran-ue
+          docker run --rm $IMAGE_NAME:$IMAGE_TAG ls /$SOURCE_REPO_NAME/console
 
       - name: Run test basic
         run: ./script/integration-test-script/integration-test.sh basic
