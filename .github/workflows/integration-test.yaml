@@ -31,6 +31,7 @@ jobs:
       - name: Build free-ran-ue image
         run: |
           cd $GITHUB_WORKSPACE/..
+          rm -rf $COMPOSE_REPO_NAME
           git clone $COMPOSE_REPO_URL
           cp -r $GITHUB_WORKSPACE $COMPOSE_REPO_NAME/$SOURCE_REPO_NAME
           cd $COMPOSE_REPO_NAME
