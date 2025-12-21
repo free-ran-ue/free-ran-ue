@@ -1,4 +1,4 @@
-.PHONY: all bin console console-init ns-up ns-down ns-ran ns-ue dc-ns-up dc-ns-down dc-ns-mran dc-ns-sran dc-ns-ue dci-ns-up dci-ns-down dci-ns-mran dci-ns-sran dci-ns-ue dci-ns-iperf-a dci-ns-iperf-b
+.PHONY: all bin console console-init ns-up ns-down ns-ran ns-ue dc-ns-up dc-ns-down dc-ns-mran dc-ns-sran dc-ns-ue
 
 .DEFAULT_GOAL := bin
 
@@ -49,25 +49,3 @@ dc-ns-sran:
 
 dc-ns-ue:
 	./script/namespace-script/free-ran-ue-dc-namespace.sh ue-ns
-
-# DC Iperf namespace
-dci-ns-up:
-	./script/namespace-script/free-ran-ue-dc-iperf-namespace.sh up
-
-dci-ns-down:
-	./script/namespace-script/free-ran-ue-dc-iperf-namespace.sh down
-
-dci-ns-mran:
-	./script/namespace-script/free-ran-ue-dc-iperf-namespace.sh mran-ns
-
-dci-ns-sran:
-	./script/namespace-script/free-ran-ue-dc-iperf-namespace.sh sran-ns
-
-dci-ns-ue:
-	./script/namespace-script/free-ran-ue-dc-iperf-namespace.sh ue-ns
-
-dci-ns-iperf-a:
-	./script/namespace-script/free-ran-ue-dc-iperf-namespace.sh iperf-a
-
-dci-ns-iperf-b:
-	./script/namespace-script/free-ran-ue-dc-iperf-namespace.sh iperf-b
