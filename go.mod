@@ -5,7 +5,7 @@ go 1.25.5
 require (
 	github.com/Alonza0314/logger-go/v2 v2.0.4
 	github.com/free5gc/aper v1.1.0
-	github.com/free5gc/nas v1.2.1
+	github.com/free5gc/nas v1.2.2
 	github.com/free5gc/ngap v1.1.1
 	github.com/free5gc/openapi v1.2.3
 	github.com/free5gc/sctp v1.1.1
