@@ -28,6 +28,7 @@ jobs:
 
       - name: Clone fru-compose and fetch PR
         run: |
+          rm -rf $COMPOSE_REPO_NAME
           git clone $COMPOSE_REPO_URL $COMPOSE_REPO_NAME
           cd $COMPOSE_REPO_NAME
           git clone $SOURCE_REPO_URL $SOURCE_REPO_NAME
@@ -70,4 +71,9 @@ jobs:
         if: always()
         run: |
           rm -rf $COMPOSE_REPO_NAME
-          docker system prune -a -f --volumes
+          docker system prune -a -f
+          docker volume prune -f
+
+      - name: Clean up cloned repositories
+        run: |
+          rm -rf $COMPOSE_REPO_NAME
