@@ -561,153 +561,90 @@ func TestValidateNrdc(t *testing.T) {
 	}
 }
 
+// baseUeIeConfig returns a base UeIE configuration for testing
+func baseUeIeConfig() model.UeIE {
+	return model.UeIE{
+		RanControlPlaneIp:   "10.0.2.1",
+		RanDataPlaneIp:      "10.0.2.1",
+		RanControlPlanePort: 31413,
+		RanDataPlanePort:    31414,
+		PlmnId: model.PlmnIdIE{
+			Mcc: "208",
+			Mnc: "93",
+		},
+		Msin:       "0000000001",
+		AccessType: models.AccessType("3GPP_ACCESS"),
+		AuthenticationSubscription: model.AuthenticationSubscriptionIE{
+			EncPermanentKey:               "8baf473f2f8fd09487cccbd7097c6862",
+			EncOpcKey:                     "8e27b6af0e692e750f32667a3b14605d",
+			AuthenticationManagementField: "8000",
+			SequenceNumber:                "000000000023",
+		},
+		CipheringAlgorithm: model.CipheringAlgorithmIE{
+			Nea0: true,
+			Nea1: false,
+			Nea2: false,
+			Nea3: false,
+		},
+		IntegrityAlgorithm: model.IntegrityAlgorithmIE{
+			Nia0: false,
+			Nia1: false,
+			Nia2: true,
+			Nia3: false,
+		},
+		PduSession: model.PduSessionIE{
+			Dnn: "internet",
+			Snssai: model.SnssaiIE{
+				Sst: "1",
+				Sd:  "010203",
+			},
+		},
+		UeTunnelDevice: "ueTun0",
+	}
+}
+
 var testValidateUeIeCases = []struct {
 	name          string
 	ueIe          model.UeIE
 	expectedError error
 }{
 	{
-		name: "testValidUeIe",
-		ueIe: model.UeIE{
-			RanControlPlaneIp:   "10.0.2.1",
-			RanDataPlaneIp:      "10.0.2.1",
-			RanControlPlanePort: 31413,
-			RanDataPlanePort:    31414,
-			PlmnId: model.PlmnIdIE{
-				Mcc: "208",
-				Mnc: "93",
-			},
-			Msin:       "0000000001",
-			AccessType: models.AccessType("3GPP_ACCESS"),
-			AuthenticationSubscription: model.AuthenticationSubscriptionIE{
-				EncPermanentKey:               "8baf473f2f8fd09487cccbd7097c6862",
-				EncOpcKey:                     "8e27b6af0e692e750f32667a3b14605d",
-				AuthenticationManagementField: "8000",
-				SequenceNumber:                "000000000023",
-			},
-			CipheringAlgorithm: model.CipheringAlgorithmIE{
-				Nea0: true,
-				Nea1: false,
-				Nea2: false,
-				Nea3: false,
-			},
-			IntegrityAlgorithm: model.IntegrityAlgorithmIE{
-				Nia0: false,
-				Nia1: false,
-				Nia2: true,
-				Nia3: false,
-			},
-			PduSession: model.PduSessionIE{
-				Dnn: "internet",
-				Snssai: model.SnssaiIE{
-					Sst: "1",
-					Sd:  "010203",
-				},
-			},
-			UeTunnelDevice: "ueTun0",
-		},
+		name:          "testValidUeIe",
+		ueIe:          baseUeIeConfig(),
 		expectedError: nil,
 	},
 	{
 		name: "testValidStaticNrdcUeIe",
-		ueIe: model.UeIE{
-			RanControlPlaneIp:   "10.0.2.1",
-			RanDataPlaneIp:      "10.0.2.1",
-			LocalDataPlaneIp:    "10.0.2.2",
-			RanControlPlanePort: 31413,
-			RanDataPlanePort:    31414,
-			PlmnId: model.PlmnIdIE{
-				Mcc: "208",
-				Mnc: "93",
-			},
-			Msin:       "0000000001",
-			AccessType: models.AccessType("3GPP_ACCESS"),
-			AuthenticationSubscription: model.AuthenticationSubscriptionIE{
-				EncPermanentKey:               "8baf473f2f8fd09487cccbd7097c6862",
-				EncOpcKey:                     "8e27b6af0e692e750f32667a3b14605d",
-				AuthenticationManagementField: "8000",
-				SequenceNumber:                "000000000023",
-			},
-			CipheringAlgorithm: model.CipheringAlgorithmIE{
-				Nea0: true,
-				Nea1: false,
-				Nea2: false,
-				Nea3: false,
-			},
-			IntegrityAlgorithm: model.IntegrityAlgorithmIE{
-				Nia0: false,
-				Nia1: false,
-				Nia2: true,
-				Nia3: false,
-			},
-			PduSession: model.PduSessionIE{
-				Dnn: "internet",
-				Snssai: model.SnssaiIE{
-					Sst: "1",
-					Sd:  "010203",
-				},
-			},
-			Nrdc: model.NrdcIE{
+		ueIe: func() model.UeIE {
+			ueIe := baseUeIeConfig()
+			ueIe.LocalDataPlaneIp = "10.0.2.2"
+			ueIe.Nrdc = model.NrdcIE{
 				Enable: true,
 				DcRanDataPlane: model.DcDataPlaneIE{
 					Ip:   "10.0.3.1",
 					Port: 31414,
 				},
 				DcLocalDataPlaneIp: "10.0.3.2",
-			},
-			UeTunnelDevice: "ueTun0",
-		},
+			}
+			return ueIe
+		}(),
 		expectedError: nil,
 	},
 	{
 		name: "testValidDynamicNrdcUeIe",
-		ueIe: model.UeIE{
-			RanControlPlaneIp:   "10.0.2.1",
-			RanDataPlaneIp:      "10.0.2.1",
-			LocalDataPlaneIp:    "10.0.2.2",
-			RanControlPlanePort: 31413,
-			RanDataPlanePort:    31414,
-			PlmnId: model.PlmnIdIE{
-				Mcc: "208",
-				Mnc: "93",
-			},
-			Msin:       "0000000001",
-			AccessType: models.AccessType("3GPP_ACCESS"),
-			AuthenticationSubscription: model.AuthenticationSubscriptionIE{
-				EncPermanentKey:               "8baf473f2f8fd09487cccbd7097c6862",
-				EncOpcKey:                     "8e27b6af0e692e750f32667a3b14605d",
-				AuthenticationManagementField: "8000",
-				SequenceNumber:                "000000000023",
-			},
-			CipheringAlgorithm: model.CipheringAlgorithmIE{
-				Nea0: true,
-				Nea1: false,
-				Nea2: false,
-				Nea3: false,
-			},
-			IntegrityAlgorithm: model.IntegrityAlgorithmIE{
-				Nia0: false,
-				Nia1: false,
-				Nia2: true,
-				Nia3: false,
-			},
-			PduSession: model.PduSessionIE{
-				Dnn: "internet",
-				Snssai: model.SnssaiIE{
-					Sst: "1",
-					Sd:  "010203",
-				},
-			},
-			Nrdc: model.NrdcIE{
+		ueIe: func() model.UeIE {
+			ueIe := baseUeIeConfig()
+			ueIe.LocalDataPlaneIp = "10.0.2.2"
+			ueIe.Nrdc = model.NrdcIE{
 				Enable: false,
 				DcRanDataPlane: model.DcDataPlaneIE{
 					Ip:   "10.0.3.1",
 					Port: 31414,
 				},
 				DcLocalDataPlaneIp: "10.0.3.2",
-			},
-			UeTunnelDevice: "ueTun0",
-		},
+			}
+			return ueIe
+		}(),
 		expectedError: nil,
 	},
 }
@@ -944,142 +881,85 @@ func TestValidateXnInterfaceIe(t *testing.T) {
 	}
 }
 
+// baseGnbIeConfig returns a base GnbIE configuration for testing
+func baseGnbIeConfig() model.GnbIE {
+	return model.GnbIE{
+		AmfN2Ip:             "10.0.1.1",
+		RanN2Ip:             "10.0.1.2",
+		UpfN3Ip:             "10.0.1.1",
+		RanN3Ip:             "10.0.1.2",
+		RanControlPlaneIp:   "10.0.2.1",
+		RanDataPlaneIp:      "10.0.2.1",
+		AmfN2Port:           38412,
+		RanN2Port:           38413,
+		UpfN3Port:           2152,
+		RanN3Port:           2152,
+		RanControlPlanePort: 31413,
+		RanDataPlanePort:    31414,
+		GnbId:               "000314",
+		GnbName:             "gNB",
+		PlmnId: model.PlmnIdIE{
+			Mcc: "208",
+			Mnc: "93",
+		},
+		Tai: model.TaiIE{
+			Tac: "000001",
+			BroadcastPlmnId: model.PlmnIdIE{
+				Mcc: "208",
+				Mnc: "93",
+			},
+		},
+		Snssai: model.SnssaiIE{
+			Sst: "1",
+			Sd:  "010203",
+		},
+		Api: model.ApiIE{
+			Ip:   "10.0.1.2",
+			Port: 40104,
+		},
+	}
+}
+
 var testValidateGnbIeCases = []struct {
 	name          string
 	gnbIe         model.GnbIE
 	expectedError error
 }{
 	{
-		name: "testValidGnbIe",
-		gnbIe: model.GnbIE{
-			AmfN2Ip:             "10.0.1.1",
-			RanN2Ip:             "10.0.1.2",
-			UpfN3Ip:             "10.0.1.1",
-			RanN3Ip:             "10.0.1.2",
-			RanControlPlaneIp:   "10.0.2.1",
-			RanDataPlaneIp:      "10.0.2.1",
-			AmfN2Port:           38412,
-			RanN2Port:           38413,
-			UpfN3Port:           2152,
-			RanN3Port:           2152,
-			RanControlPlanePort: 31413,
-			RanDataPlanePort:    31414,
-			GnbId:               "000314",
-			GnbName:             "gNB",
-			PlmnId: model.PlmnIdIE{
-				Mcc: "208",
-				Mnc: "93",
-			},
-			Tai: model.TaiIE{
-				Tac: "000001",
-				BroadcastPlmnId: model.PlmnIdIE{
-					Mcc: "208",
-					Mnc: "93",
-				},
-			},
-			Snssai: model.SnssaiIE{
-				Sst: "1",
-				Sd:  "010203",
-			},
-			Api: model.ApiIE{
-				Ip:   "10.0.1.2",
-				Port: 40104,
-			},
-		},
+		name:          "testValidGnbIe",
+		gnbIe:         baseGnbIeConfig(),
 		expectedError: nil,
 	},
 	{
 		name: "testDcStaticgNB",
-		gnbIe: model.GnbIE{
-			AmfN2Ip:             "10.0.1.1",
-			RanN2Ip:             "10.0.1.2",
-			UpfN3Ip:             "10.0.1.1",
-			RanN3Ip:             "10.0.1.2",
-			RanControlPlaneIp:   "10.0.2.1",
-			RanDataPlaneIp:      "10.0.2.1",
-			AmfN2Port:           38412,
-			RanN2Port:           38413,
-			UpfN3Port:           2152,
-			RanN3Port:           2152,
-			RanControlPlanePort: 31413,
-			RanDataPlanePort:    31414,
-			GnbId:               "000314",
-			GnbName:             "gNB",
-			PlmnId: model.PlmnIdIE{
-				Mcc: "208",
-				Mnc: "93",
-			},
-			Tai: model.TaiIE{
-				Tac: "000001",
-				BroadcastPlmnId: model.PlmnIdIE{
-					Mcc: "208",
-					Mnc: "93",
-				},
-			},
-			Snssai: model.SnssaiIE{
-				Sst: "1",
-				Sd:  "010203",
-			},
-			StaticNrdc: true,
-			XnInterface: model.XnInterfaceIE{
+		gnbIe: func() model.GnbIE {
+			gnbIe := baseGnbIeConfig()
+			gnbIe.StaticNrdc = true
+			gnbIe.XnInterface = model.XnInterfaceIE{
 				Enable:       true,
 				XnListenIp:   "10.0.1.2",
 				XnListenPort: 31415,
 				XnDialIp:     "10.0.1.3",
 				XnDialPort:   31415,
-			},
-			Api: model.ApiIE{
-				Ip:   "10.0.1.2",
-				Port: 40104,
-			},
-		},
+			}
+			return gnbIe
+		}(),
 		expectedError: nil,
 	},
 	{
 		name: "testDcDynamicgNB",
-		gnbIe: model.GnbIE{
-			AmfN2Ip:             "10.0.1.1",
-			RanN2Ip:             "10.0.1.2",
-			UpfN3Ip:             "10.0.1.1",
-			RanN3Ip:             "10.0.1.2",
-			RanControlPlaneIp:   "10.0.2.1",
-			RanDataPlaneIp:      "10.0.2.1",
-			AmfN2Port:           38412,
-			RanN2Port:           38413,
-			UpfN3Port:           2152,
-			RanN3Port:           2152,
-			RanControlPlanePort: 31413,
-			RanDataPlanePort:    31414,
-			GnbId:               "000314",
-			GnbName:             "gNB",
-			PlmnId: model.PlmnIdIE{
-				Mcc: "208",
-				Mnc: "93",
-			},
-			Tai: model.TaiIE{
-				Tac: "000001",
-				BroadcastPlmnId: model.PlmnIdIE{
-					Mcc: "208",
-					Mnc: "93",
-				},
-			},
-			Snssai: model.SnssaiIE{
-				Sst: "1",
-				Sd:  "010203",
-			},
-			StaticNrdc: false,
-			XnInterface: model.XnInterfaceIE{
+		gnbIe: func() model.GnbIE {
+			gnbIe := baseGnbIeConfig()
+			gnbIe.StaticNrdc = false
+			gnbIe.XnInterface = model.XnInterfaceIE{
 				Enable:       true,
 				XnListenIp:   "10.0.1.2",
 				XnListenPort: 31415,
 				XnDialIp:     "10.0.1.3",
 				XnDialPort:   31415,
-			},
-			Api: model.ApiIE{
-				Ip:   "10.0.1.2",
-				Port: 40104,
-			},
-		},
+			}
+			return gnbIe
+		}(),
 		expectedError: nil,
 	},
 }
