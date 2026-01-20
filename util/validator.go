@@ -8,7 +8,7 @@ import (
 	"strconv"
 
 	loggergoUtil "github.com/Alonza0314/logger-go/v2/util"
-	"github.com/free-ran-ue/free-ran-ue/model"
+	"github.com/free-ran-ue/free-ran-ue/v2/model"
 	"github.com/free5gc/openapi/models"
 )
 

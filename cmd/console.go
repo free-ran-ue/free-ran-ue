@@ -6,10 +6,10 @@ import (
 	"syscall"
 
 	loggergoUtil "github.com/Alonza0314/logger-go/v2/util"
-	"github.com/free-ran-ue/free-ran-ue/console/backend"
-	"github.com/free-ran-ue/free-ran-ue/logger"
-	"github.com/free-ran-ue/free-ran-ue/model"
-	"github.com/free-ran-ue/free-ran-ue/util"
+	"github.com/free-ran-ue/free-ran-ue/v2/console/backend"
+	"github.com/free-ran-ue/free-ran-ue/v2/logger"
+	"github.com/free-ran-ue/free-ran-ue/v2/model"
+	"github.com/free-ran-ue/free-ran-ue/v2/util"
 	"github.com/spf13/cobra"
 )
 

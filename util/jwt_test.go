@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/free-ran-ue/free-ran-ue/util"
+	"github.com/free-ran-ue/free-ran-ue/v2/util"
 )
 
 var testJWTCases = []struct {

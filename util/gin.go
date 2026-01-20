@@ -3,7 +3,7 @@ package util
 import (
 	"net/http"
 
-	"github.com/free-ran-ue/free-ran-ue/constant"
+	"github.com/free-ran-ue/free-ran-ue/v2/constant"
 	"github.com/gin-gonic/gin"
 )
 

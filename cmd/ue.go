@@ -11,11 +11,11 @@ import (
 
 	loggergo "github.com/Alonza0314/logger-go/v2"
 	loggergoUtil "github.com/Alonza0314/logger-go/v2/util"
-	"github.com/free-ran-ue/free-ran-ue/constant"
-	"github.com/free-ran-ue/free-ran-ue/logger"
-	"github.com/free-ran-ue/free-ran-ue/model"
-	"github.com/free-ran-ue/free-ran-ue/ue"
-	"github.com/free-ran-ue/free-ran-ue/util"
+	"github.com/free-ran-ue/free-ran-ue/v2/constant"
+	"github.com/free-ran-ue/free-ran-ue/v2/logger"
+	"github.com/free-ran-ue/free-ran-ue/v2/model"
+	"github.com/free-ran-ue/free-ran-ue/v2/ue"
+	"github.com/free-ran-ue/free-ran-ue/v2/util"
 	"github.com/spf13/cobra"
 )
 

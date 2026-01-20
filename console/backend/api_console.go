@@ -3,8 +3,8 @@ package backend
 import (
 	"net/http"
 
-	"github.com/free-ran-ue/free-ran-ue/console/model"
-	"github.com/free-ran-ue/free-ran-ue/util"
+	"github.com/free-ran-ue/free-ran-ue/v2/console/model"
+	"github.com/free-ran-ue/free-ran-ue/v2/util"
 	"github.com/gin-gonic/gin"
 )
 

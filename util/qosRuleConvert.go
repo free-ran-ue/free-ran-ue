@@ -3,7 +3,7 @@ package util
 import (
 	"fmt"
 
-	"github.com/free-ran-ue/free-ran-ue/logger"
+	"github.com/free-ran-ue/free-ran-ue/v2/logger"
 	"github.com/free5gc/nas/nasType"
 )
 

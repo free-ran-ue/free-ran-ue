@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/free-ran-ue/free-ran-ue/constant"
-	"github.com/free-ran-ue/free-ran-ue/logger"
+	"github.com/free-ran-ue/free-ran-ue/v2/constant"
+	"github.com/free-ran-ue/free-ran-ue/v2/logger"
 	"github.com/free5gc/aper"
 )
 

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net"
 
-	"github.com/free-ran-ue/free-ran-ue/constant"
+	"github.com/free-ran-ue/free-ran-ue/v2/constant"
 	"github.com/free5gc/aper"
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapType"
