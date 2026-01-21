@@ -254,9 +254,6 @@ func (u *Ue) Stop() {
 		u.UeLog.Errorf("Error processing UE deregistration: %v", err)
 	}
 
-	close(u.readFromTun)
-	close(u.readFromRan)
-
 	if err := u.cleanUpTunnelDevice(); err != nil {
 		u.UeLog.Errorf("Error cleaning up tunnel device: %v", err)
 	}
@@ -782,6 +779,9 @@ func (u *Ue) cleanUpTunnelDevice() error {
 		u.TunLog.Warnln("Ignore tunnel device, skip cleanup")
 		return nil
 	}
+
+	close(u.readFromTun)
+	close(u.readFromRan)
 
 	if err := bringDownUeTunnelDevice(u.ueTunnelDeviceName); err != nil {
 		return fmt.Errorf("error bring down ue tunnel device: %+v", err)
