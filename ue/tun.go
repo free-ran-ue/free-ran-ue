@@ -36,6 +36,7 @@ func bringDownUeTunnelDevice(ueTunnelDeviceName string) error {
 	cmds := [][]string{
 		{"ip", "link", "set", "dev", ueTunnelDeviceName, "down"},
 		{"ip", "addr", "flush", "dev", ueTunnelDeviceName},
+		{"ip", "link", "delete", "dev", ueTunnelDeviceName},
 	}
 
 	for _, cmd := range cmds {
