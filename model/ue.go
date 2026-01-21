@@ -28,7 +28,8 @@ type UeIE struct {
 
 	Nrdc NrdcIE `yaml:"nrdc"`
 
-	UeTunnelDevice string `yaml:"ueTunnelDevice" valid:"required"`
+	UeTunnelDevice    string `yaml:"ueTunnelDevice" valid:"required"`
+	IgnoreSetupTunnel bool   `yaml:"ignoreSetupTunnel" valid:"required"`
 }
 
 type AuthenticationSubscriptionIE struct {

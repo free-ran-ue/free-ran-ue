@@ -39,6 +39,7 @@ ue:
     enable: false # Enable NRDC
 
   ueTunnelDevice: "ueTun" # UE Tunnel Device Name
+  ignoreSetupTunnel: false # Ignore Setup Tunnel
 
 logger:
   level: "info" # error, warn, info, debug, trace

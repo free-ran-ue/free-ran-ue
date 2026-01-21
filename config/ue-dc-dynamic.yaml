@@ -44,6 +44,7 @@ ue:
     dcLocalDataPlaneIp: "10.0.3.2"
 
   ueTunnelDevice: "ueTun"
+  ignoreSetupTunnel: false
 
 logger:
   level: "info" # error, warn, info, debug, trace

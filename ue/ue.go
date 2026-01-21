@@ -96,6 +96,7 @@ type Ue struct {
 	nrdc
 
 	ueTunnelDeviceName string
+	ignoreSetupTunnel  bool
 	ueTunnelDevice     *water.Interface
 
 	readFromTun chan []byte
@@ -187,6 +188,7 @@ func NewUe(config *model.UeConfig, logger *logger.UeLogger) *Ue {
 		},
 
 		ueTunnelDeviceName: config.Ue.UeTunnelDevice,
+		ignoreSetupTunnel:  config.Ue.IgnoreSetupTunnel,
 
 		UeLogger: logger,
 	}
@@ -251,9 +253,6 @@ func (u *Ue) Stop() {
 	if err := u.processUeDeregistration(); err != nil {
 		u.UeLog.Errorf("Error processing UE deregistration: %v", err)
 	}
-
-	close(u.readFromTun)
-	close(u.readFromRan)
 
 	if err := u.cleanUpTunnelDevice(); err != nil {
 		u.UeLog.Errorf("Error cleaning up tunnel device: %v", err)
@@ -690,6 +689,11 @@ STOP_WAITING:
 
 func (u *Ue) setupTunnelDevice() error {
 	u.TunLog.Infoln("Setting up UE tunnel device")
+	
+	if u.ignoreSetupTunnel {
+		u.TunLog.Warnln("Ignore tunnel device, skip setup")
+		return nil
+	}
 
 	waterInterface, err := bringUpUeTunnelDevice(u.ueTunnelDeviceName, u.ueIp)
 	if err != nil {
@@ -770,6 +774,14 @@ func (u *Ue) setupTunnelDevice() error {
 
 func (u *Ue) cleanUpTunnelDevice() error {
 	u.TunLog.Infoln("Cleaning up UE tunnel device")
+
+	if u.ignoreSetupTunnel {
+		u.TunLog.Warnln("Ignore tunnel device, skip cleanup")
+		return nil
+	}
+
+	close(u.readFromTun)
+	close(u.readFromRan)
 
 	if err := bringDownUeTunnelDevice(u.ueTunnelDeviceName); err != nil {
 		return fmt.Errorf("error bring down ue tunnel device: %+v", err)
@@ -882,6 +894,14 @@ func (u *Ue) updateDataPlane() {
 		u.nrdc.enable = false
 		u.TunLog.Infoln("Data plane is updated to non-NRDC mode")
 	}
+}
+
+func (u *Ue) GetRanDataPlaneConn() net.Conn {
+	return u.ranDataPlaneConn
+}
+
+func (u *Ue) GetUeIp() string {
+	return u.pduSessionEstablishmentAccept.ueIp
 }
 
 func (u *Ue) getBearerType() uint8 {
