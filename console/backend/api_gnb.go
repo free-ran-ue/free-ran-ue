@@ -9,7 +9,7 @@ import (
 
 	"github.com/free-ran-ue/free-ran-ue/v2/console/model"
 	"github.com/free-ran-ue/free-ran-ue/v2/constant"
-	"github.com/free-ran-ue/free-ran-ue/v2/util"
+	"github.com/free-ran-ue/util"
 	"github.com/gin-gonic/gin"
 )
 

@@ -15,7 +15,7 @@ import (
 	"github.com/free-ran-ue/free-ran-ue/v2/constant"
 	"github.com/free-ran-ue/free-ran-ue/v2/logger"
 	"github.com/free-ran-ue/free-ran-ue/v2/model"
-	"github.com/free-ran-ue/free-ran-ue/v2/util"
+	"github.com/free-ran-ue/util"
 	"github.com/free5gc/aper"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/ngap"

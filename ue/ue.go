@@ -13,7 +13,7 @@ import (
 	"github.com/free-ran-ue/free-ran-ue/v2/constant"
 	"github.com/free-ran-ue/free-ran-ue/v2/logger"
 	"github.com/free-ran-ue/free-ran-ue/v2/model"
-	"github.com/free-ran-ue/free-ran-ue/v2/util"
+	"github.com/free-ran-ue/util"
 	"github.com/free5gc/nas"
 	"github.com/free5gc/nas/nasMessage"
 	"github.com/free5gc/nas/nasType"
@@ -689,7 +689,7 @@ STOP_WAITING:
 
 func (u *Ue) setupTunnelDevice() error {
 	u.TunLog.Infoln("Setting up UE tunnel device")
-	
+
 	if u.ignoreSetupTunnel {
 		u.TunLog.Warnln("Ignore tunnel device, skip setup")
 		return nil

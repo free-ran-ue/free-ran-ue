@@ -9,7 +9,7 @@ import (
 	"github.com/free-ran-ue/free-ran-ue/v2/console/backend"
 	"github.com/free-ran-ue/free-ran-ue/v2/logger"
 	"github.com/free-ran-ue/free-ran-ue/v2/model"
-	"github.com/free-ran-ue/free-ran-ue/v2/util"
+	"github.com/free-ran-ue/util"
 	"github.com/spf13/cobra"
 )
 
