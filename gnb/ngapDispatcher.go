@@ -2,6 +2,7 @@ package gnb
 
 import (
 	"errors"
+	"io"
 	"net"
 	"strings"
 
@@ -19,7 +20,7 @@ func (d *ngapDispatcher) start(g *Gnb) {
 	for {
 		n, err := g.n2Conn.Read(ngapBuffer)
 		if err != nil {
-			if errors.Is(err, net.ErrClosed) || strings.Contains(err.Error(), "bad file descriptor") {
+			if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) || strings.Contains(err.Error(), "bad file descriptor") {
 				g.NgapLog.Debugln("NGAP connection closed")
 				return
 			}
