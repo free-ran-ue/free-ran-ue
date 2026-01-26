@@ -2,6 +2,7 @@ package gnb
 
 import (
 	"errors"
+	"io"
 	"net"
 	"strings"
 
