@@ -13,84 +13,6 @@ import (
 	"github.com/free5gc/util/ueauth"
 )
 
-func milenageF1(opc, k, rand, sqn, amf []byte, macA, macS []byte) error {
-	ik, ck, xres, autn, err := milenage.GenerateAKAParameters(opc, k, rand, sqn, amf)
-	if err != nil {
-		return err
-	}
-	// Suppress unused variable warnings
-	_ = ik
-	_ = ck
-	_ = xres
-
-	// AUTN = (SQN xor AK) || AMF || MAC-A
-	// MAC-A is the last 8 bytes of AUTN
-	if len(autn) >= 8 && macA != nil {
-		copy(macA, autn[len(autn)-8:])
-	}
-
-	// For MAC-S, use resync AMF (0000)
-	if macS != nil {
-		resyncAMFBytes, err := hex.DecodeString("0000")
-		if err != nil {
-			return err
-		}
-		ikS, ckS, xresS, autnS, err := milenage.GenerateAKAParameters(opc, k, rand, sqn, resyncAMFBytes)
-		if err != nil {
-			return err
-		}
-		// Suppress unused variable warnings
-		_ = ikS
-		_ = ckS
-		_ = xresS
-
-		if len(autnS) >= 8 {
-			copy(macS, autnS[len(autnS)-8:])
-		}
-	}
-
-	return nil
-}
-
-func milenageF2345(opc, k, rand []byte, res, ck, ik, ak, akstar []byte) error {
-	// Use GenerateAKAParameters to get basic parameters
-	ikOut, ckOut, resOut, autn, err := milenage.GenerateAKAParameters(opc, k, rand, make([]byte, 6), make([]byte, 2))
-	if err != nil {
-		return err
-	}
-
-	// Use GenerateKeysWithAUTN to get AK
-	sqnhe, akOut, ikOut2, ckOut2, resOut2, err := milenage.GenerateKeysWithAUTN(opc, k, rand, autn)
-	if err != nil {
-		return err
-	}
-	// Suppress unused variable warnings
-	_ = sqnhe
-	_ = ikOut2
-	_ = ckOut2
-	_ = resOut2
-
-	// Copy results to output parameters
-	if res != nil {
-		copy(res, resOut)
-	}
-	if ck != nil {
-		copy(ck, ckOut)
-	}
-	if ik != nil {
-		copy(ik, ikOut)
-	}
-	if ak != nil {
-		copy(ak, akOut)
-	}
-	if akstar != nil {
-		// For AK*, we need to use a different SQN, but due to API limitations, we use the same value for now
-		copy(akstar, akOut)
-	}
-
-	return nil
-}
-
 func deriveKAmf(supi string, key []byte, snName string, SQN, AK []byte) ([]byte, error) {
 	FC := ueauth.FC_FOR_KAUSF_DERIVATION
 	P0 := []byte(snName)
@@ -149,25 +71,13 @@ func deriveAlgorithmKey(kAmf []byte, cipheringAlgorithm, integrityAlgorithm uint
 	return kenc, kint, nil
 }
 
-func deriveSequenceNumber(autn []byte, ak []uint8) []byte {
-	sqn := make([]byte, 6)
-
-	sqnXorAk := autn[0:6]
-
-	for i := 0; i < len(sqnXorAk); i++ {
-		sqn[i] = sqnXorAk[i] ^ ak[i]
-	}
-
-	return sqn
-}
-
 func deriveResStarAndSetKey(supi string, cipheringAlgorithm, integrityAlgorithm uint8, sqn, amf, encPermanentKey, encOpcKey string, rand []byte, autn []byte, snName string) ([]byte, []byte, []byte, []byte, string, error) {
 	sqnHex, err := hex.DecodeString(sqn)
 	if err != nil {
 		return nil, nil, nil, nil, "", fmt.Errorf("error decode sqn: %v", err)
 	}
 
-	amfHex, err := hex.DecodeString(amf)
+	_, err = hex.DecodeString(amf)
 	if err != nil {
 		return nil, nil, nil, nil, "", fmt.Errorf("error decode amf: %v", err)
 	}
@@ -182,24 +92,13 @@ func deriveResStarAndSetKey(supi string, cipheringAlgorithm, integrityAlgorithm 
 		return nil, nil, nil, nil, "", fmt.Errorf("error decode encOpcKey: %v", err)
 	}
 
-	macA, macS := make([]byte, 8), make([]byte, 8)
-	ck, ik := make([]byte, 16), make([]byte, 16)
-	res := make([]byte, 8)
-	ak, akStar := make([]byte, 6), make([]byte, 6)
-
-	// generate macA and macS
-	if err := milenageF1(opcHex, kHex, rand, sqnHex, amfHex, macA, macS); err != nil {
-		return nil, nil, nil, nil, "", fmt.Errorf("error F1: %v", err)
+	sqnhe, ak, ik, ck, res, err := milenage.GenerateKeysWithAUTN(opcHex, kHex, rand, autn)
+	if err != nil {
+		return nil, nil, nil, nil, "", fmt.Errorf("error GenerateKeysWithAUTN: %v", err)
 	}
 
-	//generate res, ck, ik, ak, akstar
-	if err := milenageF2345(opcHex, kHex, rand, res, ck, ik, ak, akStar); err != nil {
-		return nil, nil, nil, nil, "", fmt.Errorf("error F2345: %v", err)
-	}
-
-	// update sqn if sqn is not equal to autn's sqn
-	if newSqn := deriveSequenceNumber(autn[:], ak[:]); !bytes.Equal(sqnHex, newSqn) {
-		sqnHex = newSqn
+	if !bytes.Equal(sqnHex, sqnhe) {
+		sqnHex = sqnhe
 	}
 
 	// derive RES*
