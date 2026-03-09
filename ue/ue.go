@@ -373,7 +373,18 @@ func (u *Ue) processUeRegistration() error {
 
 	// calculate for RES* and send nas authentication response
 	rand, autn := nasPdu.AuthenticationRequest.GetRANDValue(), nasPdu.AuthenticationRequest.GetAUTN()
-	kAmf, kenc, kint, resStar, newSqn, err := deriveResStarAndSetKey(fmt.Sprintf("supi-%s", u.supi), u.cipheringAlgorithm, u.integrityAlgorithm, u.authenticationSubscription.sequenceNumber, u.authenticationSubscription.authenticationManagementField, u.authenticationSubscription.encPermanentKey, u.authenticationSubscription.encOpcKey, rand[:], autn[:], "5G:mnc093.mcc208.3gppnetwork.org")
+
+	mcc := u.mcc
+	if len(mcc) == 2 {
+		mcc = "0" + mcc
+	}
+	mnc := u.mnc
+	if len(mnc) == 2 {
+		mnc = "0" + mnc
+	}
+	snName := fmt.Sprintf("5G:mnc%s.mcc%s.3gppnetwork.org", mnc, mcc)
+
+	kAmf, kenc, kint, resStar, newSqn, err := deriveResStarAndSetKey(fmt.Sprintf("supi-%s", u.supi), u.cipheringAlgorithm, u.integrityAlgorithm, u.authenticationSubscription.sequenceNumber, u.authenticationSubscription.authenticationManagementField, u.authenticationSubscription.encPermanentKey, u.authenticationSubscription.encOpcKey, rand[:], autn[:], snName)
 	if err != nil {
 		return fmt.Errorf("error derive res star and set key: %+v", err)
 	} else {
