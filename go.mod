@@ -10,7 +10,7 @@ require (
 	github.com/free5gc/ngap v1.1.2
 	github.com/free5gc/openapi v1.2.3
 	github.com/free5gc/sctp v1.1.1
-	github.com/free5gc/util v1.3.1
+	github.com/free5gc/util v1.3.2-0.20260319090834-b2a2938f37b4
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-playground/assert v1.2.1
 	github.com/songgao/water v0.0.0-20200317203138-2b4b6d7c09d8
