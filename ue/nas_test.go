@@ -11,23 +11,49 @@ import (
 
 var testBuildUeMobileIdentity5GSCases = []struct {
 	name     string
+	mccLength int
+	mncLength int
 	supi     string
 	expected nasType.MobileIdentity5GS
 }{
 	{
 		name: "imsi-2089300007487",
+		mccLength: 3,
+		mncLength: 2,
 		supi: "2089300007487",
 		expected: nasType.MobileIdentity5GS{
-			Len:    13,
-			Buffer: []byte{0x01, 0x02, 0xf8, 0x39, 0xf0, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x47, 0x78},
+			Len:    12,
+			Buffer: []byte{0x01, 0x02, 0xf8, 0x39, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x47, 0x78},
 		},
 	},
 	{
 		name: "imsi-208930000000001",
+		mccLength: 3,
+		mncLength: 2,
 		supi: "208930000000001",
 		expected: nasType.MobileIdentity5GS{
 			Len:    13,
-			Buffer: []byte{0x01, 0x02, 0xf8, 0x39, 0xf0, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10},
+			Buffer: []byte{0x01, 0x02, 0xf8, 0x39, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10},
+		},
+	},
+	{
+		name:           "imsi-001001000000001",
+		mccLength:      3,
+		mncLength:      3,
+		supi:           "001001000000001",
+		expected: nasType.MobileIdentity5GS{
+			Len:    13,
+			Buffer: []byte{0x01, 0x00, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf1},
+		},
+	},
+	{
+		name:           "imsi-208939000000001",
+		mccLength:      3,
+		mncLength:      3,
+		supi:           "208939000000001",
+		expected: nasType.MobileIdentity5GS{
+			Len:    13,
+			Buffer: []byte{0x01, 0x02, 0x98, 0x39, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf1},
 		},
 	},
 }
@@ -35,7 +61,7 @@ var testBuildUeMobileIdentity5GSCases = []struct {
 func TestBuildUeMobileIdentity5GS(t *testing.T) {
 	for _, testCase := range testBuildUeMobileIdentity5GSCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			result := buildUeMobileIdentity5GS(testCase.supi)
+			result := buildUeMobileIdentity5GS(testCase.mccLength, testCase.mncLength, testCase.supi)
 			assert.Equal(t, testCase.expected.Len, result.Len)
 			assert.Equal(t, testCase.expected.Buffer, result.Buffer)
 		})

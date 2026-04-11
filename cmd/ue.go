@@ -104,7 +104,7 @@ func ueFunc(cmd *cobra.Command, args []string) {
 			defer func() { semaphore.Release() }()
 
 			ueConfigCopy := ueConfig
-			updateUeConfig(&ueConfigCopy, baseMsinInt, baseUeTunnelDevice, index)
+			updateUeConfig(&ueConfigCopy, baseMsinInt, baseUeTunnelDevice, index, len(ueConfig.Ue.Msin))
 
 			logger := logger.NewUeLogger(loggergoUtil.LogLevelString(ueConfigCopy.Logger.Level), "", true)
 			ue := ue.NewUe(&ueConfigCopy, &logger)
@@ -135,7 +135,7 @@ func ueFunc(cmd *cobra.Command, args []string) {
 	<-sigCh
 }
 
-func updateUeConfig(ueConfig *model.UeConfig, baseMsinInt int, baseUeTunnelDevice string, num int) {
-	ueConfig.Ue.Msin = fmt.Sprintf("%010d", baseMsinInt+num)
+func updateUeConfig(ueConfig *model.UeConfig, baseMsinInt int, baseUeTunnelDevice string, num, msinLength int) {
+	ueConfig.Ue.Msin = fmt.Sprintf("%0*d", msinLength, baseMsinInt+num)
 	ueConfig.Ue.UeTunnelDevice = fmt.Sprintf("%s%d", baseUeTunnelDevice, num)
 }

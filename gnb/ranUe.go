@@ -3,6 +3,7 @@ package gnb
 import (
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 
 	"github.com/free-ran-ue/free-ran-ue/v2/constant"
@@ -104,7 +105,13 @@ func (r *RanUe) GetRanUeId() int64 {
 
 func (r *RanUe) GetMobileIdentityIMSI() string {
 	suci := r.mobileIdentity5GS.GetSUCI()
-	return fmt.Sprintf("%s%s%s%s", constant.UE_IMSI_PREFIX, suci[7:10], suci[11:13], suci[20:])
+	parts := strings.Split(suci, "-")
+	if len(parts) < 8 {
+		return constant.UE_IMSI_PREFIX
+	}
+
+	// suci-0-mcc-mnc-routingInd-protectionScheme-homeNetworkPKI-schemeOutput
+	return fmt.Sprintf("%s%s%s%s", constant.UE_IMSI_PREFIX, parts[2], parts[3], parts[7])
 }
 
 func (r *RanUe) GetUlTeid() aper.OctetString {

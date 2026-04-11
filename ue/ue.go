@@ -333,7 +333,7 @@ func (u *Ue) connectToRanDataPlane() error {
 func (u *Ue) processUeRegistration() error {
 	u.RanLog.Infoln("Processing UE Registration")
 
-	mobileIdentity5GS := buildUeMobileIdentity5GS(u.supi)
+	mobileIdentity5GS := buildUeMobileIdentity5GS(len(u.mcc), len(u.mnc), u.supi)
 	u.NasLog.Tracef("Mobile identity 5GS: %+v", mobileIdentity5GS)
 
 	ueSecurityCapability := buildUeSecurityCapability(u.cipheringAlgorithm, u.integrityAlgorithm)
@@ -586,7 +586,7 @@ func (u *Ue) processPduSessionEstablishment() error {
 func (u *Ue) processUeDeregistration() error {
 	u.RanLog.Infoln("Processing UE deregistration")
 
-	mobileIdentity5GS := buildUeMobileIdentity5GS(u.supi)
+	mobileIdentity5GS := buildUeMobileIdentity5GS(len(u.mcc), len(u.mnc), u.supi)
 	u.NasLog.Tracef("Mobile identity 5GS: %+v", mobileIdentity5GS)
 
 	// send ue deregistration request
