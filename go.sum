@@ -14,8 +14,8 @@ github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6N
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/free-ran-ue/util v0.0.3 h1:xGiSfyjuYuOFyvp0n2gVDTLICAJHIbicGtYhks/1Jik=
-github.com/free-ran-ue/util v0.0.3/go.mod h1:qTBid7HFU0BIbYyfwNrBiwU6mjDwrim1Rl+2QnjYuqQ=
+github.com/free-ran-ue/util v0.0.4-0.20260411155520-c372c26326a4 h1:HmTI3L0fdWnlAOMxSUk/4awtaCeP+Sn7Y/mZAt/NDsM=
+github.com/free-ran-ue/util v0.0.4-0.20260411155520-c372c26326a4/go.mod h1:H9V0ji9rMUk2Uw+94FbdYq4lfSQGrPo2XW7pLl45RdY=
 github.com/free5gc/aper v1.1.0 h1:X36hts0PYQuN3d+VXpYsUZaibrokP8nbBVIQBVY2bNI=
 github.com/free5gc/aper v1.1.0/go.mod h1:v7xVwA5XaD9lBnZDOzvDF0Nw6GOcn32IrL7tM6zHPyM=
 github.com/free5gc/nas v1.2.2 h1:r2+9CHY1TRfTM/X2Pc+vBizeqweUJRuLo1DGub1vk5s=

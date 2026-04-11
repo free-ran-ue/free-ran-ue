@@ -116,8 +116,8 @@ func nasEncode(nasMessage *nas.Message, securityContextAvailable bool, newSecuri
 	return payload, nil
 }
 
-func buildUeMobileIdentity5GS(supi string) nasType.MobileIdentity5GS {
-	supiBytes := util.SupiToBytes(supi)
+func buildUeMobileIdentity5GS(nccLength, mncLength int, supi string) nasType.MobileIdentity5GS {
+	supiBytes := util.SupiToBytes(nccLength, mncLength, supi)
 	return nasType.MobileIdentity5GS{
 		Len:    uint16(len(supiBytes)),
 		Buffer: supiBytes,
