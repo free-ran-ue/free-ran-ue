@@ -8,6 +8,7 @@ import (
 	"github.com/free5gc/ngap"
 	"github.com/free5gc/ngap/ngapConvert"
 	"github.com/free5gc/ngap/ngapType"
+	"github.com/stretchr/testify/assert"
 )
 
 var testBuildNgapSetupRequestCases = []struct {
@@ -113,7 +114,7 @@ var testBuildIntialUeMessageCases = []struct {
 func TestBuildIntialUeMessage(t *testing.T) {
 	for _, testCase := range testBuildIntialUeMessageCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			pdu := buildInitialUeMessage(testCase.ranUeNgapId, testCase.ueRegistrationRequest, testCase.plmnId, testCase.tai)
+			pdu := buildInitialUeMessage(testCase.ranUeNgapId, testCase.ueRegistrationRequest, testCase.plmnId, testCase.tai, []byte{0x00, 0x03, 0x14})
 			encodeData, err := ngap.Encoder(pdu)
 			if err != nil {
 				t.Fatalf("Failed to encode NGAP initial ue message: %v", err)
@@ -159,7 +160,7 @@ var testBuildUplinkNasTransportCases = []struct {
 func TestBuildUplinkNasTransport(t *testing.T) {
 	for _, testCase := range testBuildUplinkNasTransportCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			pdu := buildUplinkNasTransport(testCase.amfUeNgapId, testCase.ranUeNgapId, testCase.plmnId, testCase.tai, testCase.nasPdu)
+			pdu := buildUplinkNasTransport(testCase.amfUeNgapId, testCase.ranUeNgapId, testCase.plmnId, testCase.tai, testCase.nasPdu, []byte{0x00, 0x03, 0x14})
 			encodeData, err := ngap.Encoder(pdu)
 			if err != nil {
 				t.Fatalf("Failed to encode NGAP uplink nas transport: %v", err)
@@ -204,6 +205,13 @@ func TestBuildNgapInitialContextSetupResponse(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBuildNRCellIdentityFromGnbID(t *testing.T) {
+	nrCellIdentity := buildNRCellIdentityFromGnbID([]byte{0x00, 0x03, 0x14})
+
+	assert.Equal(t, uint64(36), nrCellIdentity.BitLength)
+	assert.Equal(t, []byte{0x00, 0x03, 0x14, 0x00, 0x10}, nrCellIdentity.Bytes)
 }
 
 var testBuildPduSessionResourceSetupResponseTransferMessageCases = []struct {
@@ -360,7 +368,7 @@ var testBuildNgapUeContextReleaseCompleteMessageCases = []struct {
 func TestBuildNgapUeContextReleaseCompleteMessage(t *testing.T) {
 	for _, testCase := range testBuildNgapUeContextReleaseCompleteMessageCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			pdu := buildNgapUeContextReleaseCompleteMessage(testCase.amfUeNgapId, testCase.ranUeNgapId, testCase.pduSessionIdList, testCase.plmnId, testCase.tai)
+			pdu := buildNgapUeContextReleaseCompleteMessage(testCase.amfUeNgapId, testCase.ranUeNgapId, testCase.pduSessionIdList, testCase.plmnId, testCase.tai, []byte{0x00, 0x03, 0x14})
 			encodeData, err := ngap.Encoder(pdu)
 			if err != nil {
 				t.Fatalf("Failed to encode NGAP ue context release command: %v", err)

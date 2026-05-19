@@ -9,6 +9,41 @@ import (
 	"github.com/free5gc/ngap/ngapType"
 )
 
+func buildNRCellIdentityFromGnbID(gnbId []byte) aper.BitString {
+	const nrCellIdentityBits = 36
+
+	var gnbIDValue uint64
+	for _, b := range gnbId {
+		gnbIDValue = (gnbIDValue << 8) | uint64(b)
+	}
+
+	gnbIDBits := len(gnbId) * 8
+	if gnbIDBits > nrCellIdentityBits {
+		gnbIDValue >>= uint(gnbIDBits - nrCellIdentityBits)
+		gnbIDBits = nrCellIdentityBits
+	}
+
+	cellIDBits := nrCellIdentityBits - gnbIDBits
+	var nrCellIdentityValue uint64
+	if cellIDBits > 0 {
+		nrCellIdentityValue = (gnbIDValue << uint(cellIDBits)) | 1
+	} else {
+		nrCellIdentityValue = gnbIDValue
+	}
+
+	packed := nrCellIdentityValue << 4
+	return aper.BitString{
+		Bytes: []byte{
+			byte((packed >> 32) & 0xff),
+			byte((packed >> 24) & 0xff),
+			byte((packed >> 16) & 0xff),
+			byte((packed >> 8) & 0xff),
+			byte(packed & 0xff),
+		},
+		BitLength: nrCellIdentityBits,
+	}
+}
+
 func buildNgapSetupRequest(gnbId []byte, gnbName string, plmnId ngapType.PLMNIdentity, tai ngapType.TAI, snssai ngapType.SNSSAI) ngapType.NGAPPDU {
 	pdu := ngapType.NGAPPDU{}
 
@@ -106,7 +141,7 @@ func getNgapSetupRequest(gnbId []byte, gnbName string, plmnId ngapType.PLMNIdent
 	return ngap.Encoder(buildNgapSetupRequest(gnbId, gnbName, plmnId, tai, snssai))
 }
 
-func buildInitialUeMessage(ranUeNgapId int64, ueRegistrationRequest []byte, plmnId ngapType.PLMNIdentity, tai ngapType.TAI) ngapType.NGAPPDU {
+func buildInitialUeMessage(ranUeNgapId int64, ueRegistrationRequest []byte, plmnId ngapType.PLMNIdentity, tai ngapType.TAI, gnbId []byte) ngapType.NGAPPDU {
 	pdu := ngapType.NGAPPDU{}
 
 	pdu.Present = ngapType.NGAPPDUPresentInitiatingMessage
@@ -159,10 +194,7 @@ func buildInitialUeMessage(ranUeNgapId int64, ueRegistrationRequest []byte, plmn
 
 	userLocationInformationNR := userLocationInformation.UserLocationInformationNR
 	userLocationInformationNR.NRCGI.PLMNIdentity.Value = plmnId.Value
-	userLocationInformationNR.NRCGI.NRCellIdentity.Value = aper.BitString{
-		Bytes:     []byte{0x00, 0x00, 0x00, 0x00, 0x10},
-		BitLength: 36,
-	}
+	userLocationInformationNR.NRCGI.NRCellIdentity.Value = buildNRCellIdentityFromGnbID(gnbId)
 	userLocationInformationNR.TAI.PLMNIdentity.Value = tai.PLMNIdentity.Value
 	userLocationInformationNR.TAI.TAC.Value = tai.TAC.Value
 
@@ -192,12 +224,12 @@ func buildInitialUeMessage(ranUeNgapId int64, ueRegistrationRequest []byte, plmn
 	return pdu
 }
 
-func getInitialUeMessage(ranUeNgapId int64, ueRegistrationRequest []byte, plmnId ngapType.PLMNIdentity, tai ngapType.TAI) ([]byte, error) {
-	initialUeMessage := buildInitialUeMessage(ranUeNgapId, ueRegistrationRequest, plmnId, tai)
+func getInitialUeMessage(ranUeNgapId int64, ueRegistrationRequest []byte, plmnId ngapType.PLMNIdentity, tai ngapType.TAI, gnbId []byte) ([]byte, error) {
+	initialUeMessage := buildInitialUeMessage(ranUeNgapId, ueRegistrationRequest, plmnId, tai, gnbId)
 	return ngap.Encoder(initialUeMessage)
 }
 
-func buildUplinkNasTransport(amfUeNgapId int64, ranUeNgapId int64, plmnId ngapType.PLMNIdentity, tai ngapType.TAI, nasPdu []byte) ngapType.NGAPPDU {
+func buildUplinkNasTransport(amfUeNgapId int64, ranUeNgapId int64, plmnId ngapType.PLMNIdentity, tai ngapType.TAI, nasPdu []byte, gnbId []byte) ngapType.NGAPPDU {
 	pdu := ngapType.NGAPPDU{}
 
 	pdu.Present = ngapType.NGAPPDUPresentInitiatingMessage
@@ -262,10 +294,7 @@ func buildUplinkNasTransport(amfUeNgapId int64, ranUeNgapId int64, plmnId ngapTy
 
 	userLocationInformationNR := userLocationInformation.UserLocationInformationNR
 	userLocationInformationNR.NRCGI.PLMNIdentity.Value = plmnId.Value
-	userLocationInformationNR.NRCGI.NRCellIdentity.Value = aper.BitString{
-		Bytes:     []byte{0x00, 0x00, 0x00, 0x00, 0x10},
-		BitLength: 36,
-	}
+	userLocationInformationNR.NRCGI.NRCellIdentity.Value = buildNRCellIdentityFromGnbID(gnbId)
 
 	userLocationInformationNR.TAI.PLMNIdentity.Value = tai.PLMNIdentity.Value
 	userLocationInformationNR.TAI.TAC.Value = tai.TAC.Value
@@ -275,8 +304,8 @@ func buildUplinkNasTransport(amfUeNgapId int64, ranUeNgapId int64, plmnId ngapTy
 	return pdu
 }
 
-func getUplinkNasTransport(amfUeNgapId int64, ranUeNgapId int64, plmnId ngapType.PLMNIdentity, tai ngapType.TAI, nasPdu []byte) ([]byte, error) {
-	uplinkNasTransport := buildUplinkNasTransport(amfUeNgapId, ranUeNgapId, plmnId, tai, nasPdu)
+func getUplinkNasTransport(amfUeNgapId int64, ranUeNgapId int64, plmnId ngapType.PLMNIdentity, tai ngapType.TAI, nasPdu []byte, gnbId []byte) ([]byte, error) {
+	uplinkNasTransport := buildUplinkNasTransport(amfUeNgapId, ranUeNgapId, plmnId, tai, nasPdu, gnbId)
 	return ngap.Encoder(uplinkNasTransport)
 }
 
@@ -433,7 +462,7 @@ func getPduSessionResourceSetupResponse(amfUeNgapId, ranUeNgapId, pduSessionId i
 	return ngap.Encoder(pduSessionResourceSetupResponse)
 }
 
-func buildNgapUeContextReleaseCompleteMessage(amfUeNgapId, ranUeNgapId int64, pduSessionIdList []int64, plmnId ngapType.PLMNIdentity, tai ngapType.TAI) ngapType.NGAPPDU {
+func buildNgapUeContextReleaseCompleteMessage(amfUeNgapId, ranUeNgapId int64, pduSessionIdList []int64, plmnId ngapType.PLMNIdentity, tai ngapType.TAI, gnbId []byte) ngapType.NGAPPDU {
 	pdu := ngapType.NGAPPDU{}
 
 	pdu.Present = ngapType.NGAPPDUPresentSuccessfulOutcome
@@ -486,10 +515,7 @@ func buildNgapUeContextReleaseCompleteMessage(amfUeNgapId, ranUeNgapId int64, pd
 
 	userLocationInformationNR := userLocationInformation.UserLocationInformationNR
 	userLocationInformationNR.NRCGI.PLMNIdentity.Value = plmnId.Value
-	userLocationInformationNR.NRCGI.NRCellIdentity.Value = aper.BitString{
-		Bytes:     []byte{0x00, 0x00, 0x00, 0x00, 0x10},
-		BitLength: 36,
-	}
+	userLocationInformationNR.NRCGI.NRCellIdentity.Value = buildNRCellIdentityFromGnbID(gnbId)
 
 	userLocationInformationNR.TAI.PLMNIdentity.Value = tai.PLMNIdentity.Value
 	userLocationInformationNR.TAI.TAC.Value = tai.TAC.Value
@@ -518,8 +544,8 @@ func buildNgapUeContextReleaseCompleteMessage(amfUeNgapId, ranUeNgapId int64, pd
 	return pdu
 }
 
-func getNgapUeContextReleaseCompleteMessage(amfUeNgapId, ranUeNgapId int64, pduSessionIdList []int64, plmnId ngapType.PLMNIdentity, tai ngapType.TAI) ([]byte, error) {
-	ngapUeContextReleaseComplete := buildNgapUeContextReleaseCompleteMessage(amfUeNgapId, ranUeNgapId, pduSessionIdList, plmnId, tai)
+func getNgapUeContextReleaseCompleteMessage(amfUeNgapId, ranUeNgapId int64, pduSessionIdList []int64, plmnId ngapType.PLMNIdentity, tai ngapType.TAI, gnbId []byte) ([]byte, error) {
+	ngapUeContextReleaseComplete := buildNgapUeContextReleaseCompleteMessage(amfUeNgapId, ranUeNgapId, pduSessionIdList, plmnId, tai, gnbId)
 	return ngap.Encoder(ngapUeContextReleaseComplete)
 }
 

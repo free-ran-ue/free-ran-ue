@@ -714,7 +714,7 @@ func (g *Gnb) processUeInitialization(ranUe *RanUe) error {
 	ranUe.SetMobileIdentity5GS(nasMessage.GmmMessage.RegistrationRequest.MobileIdentity5GS)
 	g.NasLog.Debugf("Receive UE %s registration request from UE", ranUe.GetMobileIdentityIMSI())
 
-	ueInitialMessage, err := getInitialUeMessage(ranUe.GetRanUeId(), ueRegistrationRequest, g.plmnId, g.tai)
+	ueInitialMessage, err := getInitialUeMessage(ranUe.GetRanUeId(), ueRegistrationRequest, g.plmnId, g.tai, g.gnbId)
 	if err != nil {
 		return fmt.Errorf("error get initial ue message: %v", err)
 	}
@@ -737,7 +737,7 @@ func (g *Gnb) processUeInitialization(ranUe *RanUe) error {
 	g.NasLog.Tracef("Received %d bytes of NAS Authentication Response from UE", n)
 	g.NasLog.Debugln("Receive NAS Authentication Response from UE")
 
-	uplinkNasTransport, err := getUplinkNasTransport(ranUe.GetAmfUeId(), ranUe.GetRanUeId(), g.plmnId, g.tai, nasAuthenticationResponse[:n])
+	uplinkNasTransport, err := getUplinkNasTransport(ranUe.GetAmfUeId(), ranUe.GetRanUeId(), g.plmnId, g.tai, nasAuthenticationResponse[:n], g.gnbId)
 	if err != nil {
 		return fmt.Errorf("error get uplink nas transport: %v", err)
 	}
@@ -761,7 +761,7 @@ func (g *Gnb) processUeInitialization(ranUe *RanUe) error {
 	g.NasLog.Tracef("Received %d bytes of NAS Security Mode Complete from UE", n)
 	g.NasLog.Debugln("Receive NAS Security Mode Complete from UE")
 
-	uplinkNasTransport, err = getUplinkNasTransport(ranUe.GetAmfUeId(), ranUe.GetRanUeId(), g.plmnId, g.tai, nasSecurityModeComplete[:n])
+	uplinkNasTransport, err = getUplinkNasTransport(ranUe.GetAmfUeId(), ranUe.GetRanUeId(), g.plmnId, g.tai, nasSecurityModeComplete[:n], g.gnbId)
 	if err != nil {
 		return fmt.Errorf("error get uplink nas transport: %v", err)
 	}
@@ -785,7 +785,7 @@ func (g *Gnb) processUeInitialization(ranUe *RanUe) error {
 	g.NasLog.Tracef("Received %d bytes of NAS Registration Complete from UE", n)
 	g.NasLog.Debugln("Receive NAS Registration Complete from UE")
 
-	uplinkNasTransport, err = getUplinkNasTransport(ranUe.GetAmfUeId(), ranUe.GetRanUeId(), g.plmnId, g.tai, nasRegistrationComplete[:n])
+	uplinkNasTransport, err = getUplinkNasTransport(ranUe.GetAmfUeId(), ranUe.GetRanUeId(), g.plmnId, g.tai, nasRegistrationComplete[:n], g.gnbId)
 	if err != nil {
 		return fmt.Errorf("error get uplink nas transport: %v", err)
 	}
@@ -816,7 +816,7 @@ func (g *Gnb) processUePduSessionEstablishment(ranUe *RanUe) error {
 	g.NasLog.Tracef("Received %d bytes of PDU Session Establishment Request from UE", n)
 	g.NasLog.Debugln("Receive PDU Session Establishment Request from UE")
 
-	uplinkNasTransport, err := getUplinkNasTransport(ranUe.GetAmfUeId(), ranUe.GetRanUeId(), g.plmnId, g.tai, pduSessionEstablishmentRequest[:n])
+	uplinkNasTransport, err := getUplinkNasTransport(ranUe.GetAmfUeId(), ranUe.GetRanUeId(), g.plmnId, g.tai, pduSessionEstablishmentRequest[:n], g.gnbId)
 	if err != nil {
 		return fmt.Errorf("error get uplink nas transport: %v", err)
 	}
@@ -884,7 +884,7 @@ func (g *Gnb) processUeDeRegistration(ranUe *RanUe) error {
 	g.RanLog.Tracef("Received %d bytes of UE deregistration request from UE: %+v", n, ueDeRegistrationRequest[:n])
 	g.RanLog.Tracef("Received %d bytes of UE deregistration request from UE", n)
 
-	uplinkNasTransport, err := getUplinkNasTransport(ranUe.GetAmfUeId(), ranUe.GetRanUeId(), g.plmnId, g.tai, ueDeRegistrationRequest[:n])
+	uplinkNasTransport, err := getUplinkNasTransport(ranUe.GetAmfUeId(), ranUe.GetRanUeId(), g.plmnId, g.tai, ueDeRegistrationRequest[:n], g.gnbId)
 	if err != nil {
 		return fmt.Errorf("error get uplink nas transport: %v", err)
 	}
