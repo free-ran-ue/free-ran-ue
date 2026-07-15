@@ -103,7 +103,14 @@ func receiveGtpPacketFromN3Conn(ctx context.Context, n3Conn *net.UDPConn, ranDat
 			if errors.Is(err, net.ErrClosed) {
 				return
 			}
+			// e.g. an ICMP port-unreachable surfaced on the connected
+			// socket; there is no packet to process.
 			gnbLogger.GtpLog.Warnf("Error reading GTP packet from N3 connection: %v", err)
+			continue
+		}
+		if n < 8 {
+			gnbLogger.GtpLog.Warnf("Short GTP packet (%d bytes) from N3 connection, dropping", n)
+			continue
 		}
 		gnbLogger.GtpLog.Tracef("Received %d bytes of GTP packet from N3 connection: %+v", n, buffer[:n])
 		gnbLogger.GtpLog.Tracef("Received %d bytes of GTP packet from N3 connection", n)
