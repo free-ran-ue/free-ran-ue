@@ -2,7 +2,7 @@ package gnb
 
 import "net"
 
-// implementation at RanUe and XnUe
+// Ue interface is implemented by RanUe and XnUe
 type Ue interface {
 	GetIMSI() string
 	GetUlTeid() []byte
