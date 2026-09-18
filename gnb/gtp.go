@@ -159,10 +159,10 @@ func forwardPacketToUe(gtpPacket []byte, ranDataPlaneServer *net.UDPConn, dlTeid
 		return
 	}
 
-	gnbLogger.GtpLog.Debugf("Loaded UE %s for DL TEID: %s", dataPlaneUe.Identity(), teid)
+	gnbLogger.GtpLog.Debugf("Loaded UE %s for DL TEID: %s", dataPlaneUe.GetIMSI(), teid)
 	dataPlaneAddress := dataPlaneUe.GetDataPlaneAddress()
 	if dataPlaneAddress == nil {
-		gnbLogger.GtpLog.Warnf("UE %s data plane address not set yet, dropping packet", dataPlaneUe.Identity())
+		gnbLogger.GtpLog.Warnf("UE %s data plane address not set yet, dropping packet", dataPlaneUe.GetIMSI())
 		return
 	}
 	n, err := ranDataPlaneServer.WriteToUDP(payload, dataPlaneAddress)

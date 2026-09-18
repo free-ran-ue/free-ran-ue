@@ -680,9 +680,9 @@ func (g *Gnb) handleUeDataPlaneInitialPacket(ueAddress *net.UDPAddr, imsi string
 
 	switch dlTeidAndUeTypeInstance.ueType {
 	case constant.UE_TYPE_RAN:
-		g.RanLog.Infof("Set data plane address %s for UE: %s", ueAddress.String(), dataPlaneUe.Identity())
+		g.RanLog.Infof("Set data plane address %s for UE: %s", ueAddress.String(), dataPlaneUe.GetIMSI())
 	case constant.UE_TYPE_XN:
-		g.XnLog.Infof("Set data plane address %s for UE: %s", ueAddress.String(), dataPlaneUe.Identity())
+		g.XnLog.Infof("Set data plane address %s for UE: %s", ueAddress.String(), dataPlaneUe.GetIMSI())
 	}
 }
 

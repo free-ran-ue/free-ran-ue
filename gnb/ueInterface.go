@@ -4,7 +4,7 @@ import "net"
 
 // implementation at RanUe and XnUe
 type Ue interface {
-	Identity() string
+	GetIMSI() string
 	GetUlTeid() []byte
 	GetDlTeid() []byte
 	GetDataPlaneAddress() *net.UDPAddr
