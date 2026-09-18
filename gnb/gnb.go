@@ -876,7 +876,9 @@ func (g *Gnb) processUePduSessionEstablishment(ranUe *RanUe) error {
 
 	// wait dispatcher to receive ngap pdu session resource setup request from AMF
 
-	<-ranUe.GetPduSessionEstablishmentCompleteChan()
+	if err := util.WaitComplete(ranUe.GetPduSessionEstablishmentCompleteChan(), 10*time.Second); err != nil {
+		return fmt.Errorf("error waiting for pdu session establishment to complete: %v", err)
+	}
 	g.NgapLog.Infof("UE %s PDU session establishment completed", ranUe.GetMobileIdentityIMSI())
 	return nil
 }
@@ -911,8 +913,9 @@ func (g *Gnb) processUePduSessionModifyIndication(ranUe *RanUe) error {
 	g.NgapLog.Debugln("Send PDU Session Modify Indication to AMF")
 
 	// wait dispatcher to receive ngap pdu session resource setup request from AMF
-
-	<-ranUe.GetPduSessionModifyIndicationCompleteChan()
+	if err := util.WaitComplete(ranUe.GetPduSessionModifyIndicationCompleteChan(), 10*time.Second); err != nil {
+		return fmt.Errorf("error waiting for pdu session modify indication to complete: %v", err)
+	}
 	g.NgapLog.Infof("UE %s PDU session modify indication completed", ranUe.GetMobileIdentityIMSI())
 	return nil
 }
@@ -943,8 +946,9 @@ func (g *Gnb) processUeDeRegistration(ranUe *RanUe) error {
 	g.NgapLog.Debugln("Send UE deregistration request to AMF")
 
 	// wait dispatcher to receive ue deregistration accept from AMF
-
-	<-ranUe.GetUeContextReleaseCompleteChan()
+	if err := util.WaitComplete(ranUe.GetUeContextReleaseCompleteChan(), 10*time.Second); err != nil {
+		return fmt.Errorf("error waiting for ue context release to complete: %v", err)
+	}
 	g.RanLog.Infoln("UE deregistration complete")
 	return nil
 }

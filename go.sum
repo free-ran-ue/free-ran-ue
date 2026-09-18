@@ -14,8 +14,8 @@ github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6N
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/free-ran-ue/util v0.1.0 h1:4U/1ovWrto7RfI6YodkoO6CZeI4pQStf908JiNXOzsU=
-github.com/free-ran-ue/util v0.1.0/go.mod h1:It9S56eAe+2JZXA4O1f1Bjus7PgAAy0xoc6kObuwjPQ=
+github.com/free-ran-ue/util v0.2.0 h1:3YxyVaKBn6lAQActu1P7JGnrGpfS5keQsyCuNydNfjc=
+github.com/free-ran-ue/util v0.2.0/go.mod h1:wfKg76AHnnUPKehdWB+oJ+Tv8bUy67+2c7J1Qx/YZrA=
 github.com/free5gc/nas v1.3.0 h1:r42lNApvMtAwaHwpb50ZpOXZabGaQvFRy/q3JxS0o/g=
 github.com/free5gc/nas v1.3.0/go.mod h1:T/krdGjxSut+MQJAFFBS4lsWZa/NPEz7wO0G/D3qHeE=
 github.com/free5gc/ngap v1.2.0 h1:tZPokNiF/J97dmq0DVATcE1lZi7stCo7LZaosSB8otQ=

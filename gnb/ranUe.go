@@ -77,9 +77,9 @@ func NewRanUe(n1Conn net.Conn, ranUeNgapIdGenerator *RanUeNgapIdGenerator) (*Ran
 
 		n1Conn: n1Conn,
 
-		pduSessionEstablishmentCompleteChan:    make(chan struct{}),
-		ueContextReleaseCompleteChan:           make(chan struct{}),
-		pduSessionModifyIndicationCompleteChan: make(chan struct{}),
+		pduSessionEstablishmentCompleteChan:    make(chan struct{}, 1),
+		ueContextReleaseCompleteChan:           make(chan struct{}, 1),
+		pduSessionModifyIndicationCompleteChan: make(chan struct{}, 1),
 
 		nrdcIndicator:    false,
 		nrdcIndicatorMtx: sync.Mutex{},
@@ -88,11 +88,7 @@ func NewRanUe(n1Conn net.Conn, ranUeNgapIdGenerator *RanUeNgapIdGenerator) (*Ran
 
 func (r *RanUe) Release(ranUeNgapIdGenerator *RanUeNgapIdGenerator, teidGenerator *TeidGenerator) error {
 	ranUeNgapIdGenerator.ReleaseRanUeId(r.ranUeNgapId)
-	err := teidGenerator.ReleaseTeid(r.dlTeid)
-	close(r.pduSessionEstablishmentCompleteChan)
-	close(r.ueContextReleaseCompleteChan)
-	close(r.pduSessionModifyIndicationCompleteChan)
-	return err
+	return teidGenerator.ReleaseTeid(r.dlTeid)
 }
 
 func (r *RanUe) GetAmfUeId() int64 {
