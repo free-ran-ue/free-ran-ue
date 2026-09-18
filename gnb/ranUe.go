@@ -22,18 +22,18 @@ func NewRanUeNgapIdGenerator() *RanUeNgapIdGenerator {
 	}
 }
 
-func (g *RanUeNgapIdGenerator) AllocateRanUeId() int64 {
+func (g *RanUeNgapIdGenerator) AllocateRanUeId() (int64, error) {
 	g.mtx.Lock()
 	defer g.mtx.Unlock()
 
 	for i := 1; i <= 65535; i++ {
 		if _, exists := g.usedRanUeIds.Load(int64(i)); !exists {
 			g.usedRanUeIds.Store(int64(i), true)
-			return int64(i)
+			return int64(i), nil
 		}
 	}
 
-	return -1
+	return 0, fmt.Errorf("ranUeId pool exhausted")
 }
 
 func (g *RanUeNgapIdGenerator) ReleaseRanUeId(ranUeId int64) {
@@ -63,10 +63,10 @@ type RanUe struct {
 	nrdcIndicatorMtx sync.Mutex
 }
 
-func NewRanUe(n1Conn net.Conn, ranUeNgapIdGenerator *RanUeNgapIdGenerator) *RanUe {
-	ranUeId := ranUeNgapIdGenerator.AllocateRanUeId()
-	if ranUeId == -1 {
-		panic("Failed to allocate ranUeId")
+func NewRanUe(n1Conn net.Conn, ranUeNgapIdGenerator *RanUeNgapIdGenerator) (*RanUe, error) {
+	ranUeId, err := ranUeNgapIdGenerator.AllocateRanUeId()
+	if err != nil {
+		return nil, err
 	}
 
 	return &RanUe{
@@ -77,21 +77,18 @@ func NewRanUe(n1Conn net.Conn, ranUeNgapIdGenerator *RanUeNgapIdGenerator) *RanU
 
 		n1Conn: n1Conn,
 
-		pduSessionEstablishmentCompleteChan:    make(chan struct{}),
-		ueContextReleaseCompleteChan:           make(chan struct{}),
-		pduSessionModifyIndicationCompleteChan: make(chan struct{}),
+		pduSessionEstablishmentCompleteChan:    make(chan struct{}, 1),
+		ueContextReleaseCompleteChan:           make(chan struct{}, 1),
+		pduSessionModifyIndicationCompleteChan: make(chan struct{}, 1),
 
 		nrdcIndicator:    false,
 		nrdcIndicatorMtx: sync.Mutex{},
-	}
+	}, nil
 }
 
-func (r *RanUe) Release(ranUeNgapIdGenerator *RanUeNgapIdGenerator, teidGenerator *TeidGenerator) {
+func (r *RanUe) Release(ranUeNgapIdGenerator *RanUeNgapIdGenerator, teidGenerator *TeidGenerator) error {
 	ranUeNgapIdGenerator.ReleaseRanUeId(r.ranUeNgapId)
-	teidGenerator.ReleaseTeid(r.dlTeid)
-	close(r.pduSessionEstablishmentCompleteChan)
-	close(r.ueContextReleaseCompleteChan)
-	close(r.pduSessionModifyIndicationCompleteChan)
+	return teidGenerator.ReleaseTeid(r.dlTeid)
 }
 
 func (r *RanUe) GetAmfUeId() int64 {
@@ -111,6 +108,10 @@ func (r *RanUe) GetMobileIdentityIMSI() string {
 
 	// suci-0-mcc-mnc-routingInd-protectionScheme-homeNetworkPKI-schemeOutput
 	return fmt.Sprintf("%s%s%s%s", constant.UE_IMSI_PREFIX, parts[2], parts[3], parts[7])
+}
+
+func (r *RanUe) GetIMSI() string {
+	return r.GetMobileIdentityIMSI()
 }
 
 func (r *RanUe) GetUlTeid() []byte {

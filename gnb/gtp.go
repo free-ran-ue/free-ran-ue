@@ -26,7 +26,7 @@ func NewTeidGenerator() *TeidGenerator {
 	}
 }
 
-func (t *TeidGenerator) AllocateTeid() []byte {
+func (t *TeidGenerator) AllocateTeid() ([]byte, error) {
 	t.mtx.Lock()
 	defer t.mtx.Unlock()
 
@@ -36,42 +36,46 @@ func (t *TeidGenerator) AllocateTeid() []byte {
 
 			teid, err := hex.DecodeString(t.formatAsString(int64(i)))
 			if err != nil {
-				panic(fmt.Errorf("error decode teid: %v", err))
+				return nil, fmt.Errorf("error decode teid: %v", err)
 			}
 
-			return []byte(teid)
+			return teid, nil
 		}
 	}
 
-	return []byte{}
+	return nil, fmt.Errorf("teid pool exhausted")
 }
 
-func (t *TeidGenerator) ReleaseTeid(teid []byte) {
+func (t *TeidGenerator) ReleaseTeid(teid []byte) error {
 	t.mtx.Lock()
 	defer t.mtx.Unlock()
 
 	if len(teid) == 0 {
-		return
+		return nil
 	}
-	value := t.deFormatFromString(hex.EncodeToString(teid))
 
-	if _, exists := t.teids.Load(value); exists {
-		t.teids.Delete(value)
-	} else {
-		panic(fmt.Errorf("attempting to release teid %s that is not allocated", hex.EncodeToString(teid)))
+	value, err := t.deFormatFromString(hex.EncodeToString(teid))
+	if err != nil {
+		return err
 	}
+
+	if _, exists := t.teids.Load(value); !exists {
+		return fmt.Errorf("attempting to release teid %s that is not allocated", hex.EncodeToString(teid))
+	}
+	t.teids.Delete(value)
+	return nil
 }
 
 func (t *TeidGenerator) formatAsString(teid int64) string {
 	return fmt.Sprintf("%08x", teid)
 }
 
-func (t *TeidGenerator) deFormatFromString(teid string) int64 {
+func (t *TeidGenerator) deFormatFromString(teid string) (int64, error) {
 	teidInt, err := strconv.ParseInt(teid, 16, 64)
 	if err != nil {
-		panic(fmt.Errorf("error deformat teid: %v", err))
+		return 0, fmt.Errorf("error deformat teid: %v", err)
 	}
-	return teidInt
+	return teidInt, nil
 }
 
 // get packet with GTP header from gtpChannel and forward to N3 connection
@@ -153,36 +157,25 @@ func forwardPacketToUe(gtpPacket []byte, ranDataPlaneServer *net.UDPConn, dlTeid
 		return
 	}
 
-	switch u := ue.(type) {
-	case *RanUe:
-		gnbLogger.GtpLog.Debugf("Loaded UE %s for DL TEID: %s", u.GetMobileIdentityIMSI(), teid)
-		dataPlaneAddress := u.GetDataPlaneAddress()
-		if dataPlaneAddress == nil {
-			gnbLogger.GtpLog.Warnf("RAN UE %s data plane address not set yet, dropping packet", u.GetMobileIdentityIMSI())
-			return
-		}
-		n, err := ranDataPlaneServer.WriteToUDP(payload, dataPlaneAddress)
-		if err != nil {
-			gnbLogger.GtpLog.Warnf("Error writing GTP packet to RAN UE: %v", err)
-			return
-		}
-		gnbLogger.GtpLog.Tracef("Forwarded %d bytes of GTP packet to RAN UE", n)
-		gnbLogger.GtpLog.Debugln("Forwarded GTP packet to RAN UE")
-	case *XnUe:
-		gnbLogger.GtpLog.Debugf("Loaded UE %s for DL TEID: %s", u.GetIMSI(), teid)
-		dataPlaneAddress := u.GetDataPlaneAddress()
-		if dataPlaneAddress == nil {
-			gnbLogger.GtpLog.Warnf("XN UE %s data plane address not set yet, dropping packet", u.GetIMSI())
-			return
-		}
-		n, err := ranDataPlaneServer.WriteToUDP(payload, dataPlaneAddress)
-		if err != nil {
-			gnbLogger.GtpLog.Warnf("Error writing GTP packet to XN UE: %v", err)
-			return
-		}
-		gnbLogger.GtpLog.Tracef("Forwarded %d bytes of GTP packet to XN UE", n)
-		gnbLogger.GtpLog.Debugln("Forwarded GTP packet to XN UE")
+	dataPlaneUe, ok := ue.(Ue)
+	if !ok {
+		gnbLogger.GtpLog.Warnf("Unexpected UE type for DL TEID: %s", teid)
+		return
 	}
+
+	gnbLogger.GtpLog.Debugf("Loaded UE %s for DL TEID: %s", dataPlaneUe.GetIMSI(), teid)
+	dataPlaneAddress := dataPlaneUe.GetDataPlaneAddress()
+	if dataPlaneAddress == nil {
+		gnbLogger.GtpLog.Warnf("UE %s data plane address not set yet, dropping packet", dataPlaneUe.GetIMSI())
+		return
+	}
+	n, err := ranDataPlaneServer.WriteToUDP(payload, dataPlaneAddress)
+	if err != nil {
+		gnbLogger.GtpLog.Warnf("Error writing GTP packet to UE: %v", err)
+		return
+	}
+	gnbLogger.GtpLog.Tracef("Forwarded %d bytes of GTP packet to UE", n)
+	gnbLogger.GtpLog.Debugln("Forwarded GTP packet to UE")
 }
 
 // parse GTP packet, will return the TEID and payload

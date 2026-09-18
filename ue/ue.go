@@ -361,23 +361,10 @@ func (u *Ue) processUeRegistration() error {
 	u.NasLog.Debugln("Send UE registration request")
 
 	// receive nas authentication request
-	nasAuthenticationRequestRaw := make([]byte, 1024)
-	n, err = u.ranControlPlaneConn.Read(nasAuthenticationRequestRaw)
+	authenticationRequest, err := readAndDecodeNas[*message.AuthReq](u, "NAS Authentication Request")
 	if err != nil {
-		return fmt.Errorf("error read nas authentication request: %+v", err)
+		return err
 	}
-	u.NasLog.Tracef("Received %d bytes of NAS Authentication Request from RAN", n)
-
-	nasPdu, err := nasDecode(u, nasAuthenticationRequestRaw[:n])
-	if err != nil {
-		return fmt.Errorf("error decode nas authentication request: %+v", err)
-	}
-	authenticationRequest, ok := nasPdu.(*message.AuthReq)
-	if !ok {
-		return fmt.Errorf("error nas pdu message type: %+v, expected authenticatoin request", nasPdu)
-	}
-	u.NasLog.Tracef("NAS authentication request: %+v", authenticationRequest)
-	u.NasLog.Debugln("Receive NAS Authentication Request from RAN")
 
 	// calculate for RES* and send nas authentication response
 	rand, autn := authenticationRequest.AuthParamRAND5GAuthChlg.Rand, authenticationRequest.AuthParamAUTN5GAuthChlg.Autn
@@ -422,23 +409,10 @@ func (u *Ue) processUeRegistration() error {
 	u.NasLog.Debugln("Send Authentication Response to RAN")
 
 	// receive nas security mode command message
-	nasSecurityCommandRaw := make([]byte, 1024)
-	n, err = u.ranControlPlaneConn.Read(nasSecurityCommandRaw)
+	securityModeCommand, err := readAndDecodeNas[*message.SecModeCmd](u, "NAS Security Mode Command")
 	if err != nil {
-		return fmt.Errorf("error read nas security command: %+v", err)
+		return err
 	}
-	u.NasLog.Tracef("Received %d bytes of NAS Security Mode Command from RAN", n)
-
-	nasPdu, err = nasDecode(u, nasSecurityCommandRaw[:n])
-	if err != nil {
-		return fmt.Errorf("error get nas pdu: %+v", err)
-	}
-	securityModeCommand, ok := nasPdu.(*message.SecModeCmd)
-	if !ok {
-		return fmt.Errorf("error nas pdu message type: %+v, expected security mode command", nasPdu)
-	}
-	u.NasLog.Tracef("NAS security mode command: %+v", securityModeCommand)
-	u.NasLog.Debugln("Receive NAS Security Mode Command from RAN")
 
 	u.secCtx.CipheringAlg = securityModeCommand.SelectedNASSecAlgos.CipheringAlgo
 	u.secCtx.IntegrityAlg = securityModeCommand.SelectedNASSecAlgos.MsgIntAlgo
@@ -474,23 +448,9 @@ func (u *Ue) processUeRegistration() error {
 	u.NasLog.Debugln("Send NAS Security Mode Complete Message to RAN")
 
 	// receive nas registration accept
-	nasRegistrationAcceptRaw := make([]byte, 1024)
-	n, err = u.ranControlPlaneConn.Read(nasRegistrationAcceptRaw)
-	if err != nil {
-		return fmt.Errorf("error read nas registration accept: %+v", err)
+	if _, err := readAndDecodeNas[*message.RegAccept](u, "NAS Registration Accept"); err != nil {
+		return err
 	}
-	u.NasLog.Tracef("Received %d bytes of NAS Registration Accept from RAN", n)
-
-	nasPdu, err = nasDecode(u, nasRegistrationAcceptRaw[:n])
-	if err != nil {
-		return fmt.Errorf("error decode nas registration accept: %+v", err)
-	}
-	registrationAccept, ok := nasPdu.(*message.RegAccept)
-	if !ok {
-		return fmt.Errorf("error nas pdu message type: %+v, expected registration accept", nasPdu)
-	}
-	u.NasLog.Tracef("NAS registration accept: %+v", registrationAccept)
-	u.NasLog.Debugln("Receive NAS Registration Accept from RAN")
 
 	// send nas registration complete message to RAN
 	nasRegistrationCompleteMessage := getNasRegistrationCompleteMessage()
@@ -510,23 +470,9 @@ func (u *Ue) processUeRegistration() error {
 	u.NasLog.Debugln("Send NAS Registration Complete Message to RAN")
 
 	// receive nas configuration update command
-	nasConfigurationUpdateCommandRaw := make([]byte, 1024)
-	n, err = u.ranControlPlaneConn.Read(nasConfigurationUpdateCommandRaw)
-	if err != nil {
-		return fmt.Errorf("error read nas configuration update command: %+v", err)
+	if _, err := readAndDecodeNas[*message.CfgUpdateCmd](u, "NAS Configuration Update Command"); err != nil {
+		return err
 	}
-	u.NasLog.Tracef("Received %d bytes of NAS Configuration Update Command from RAN", n)
-
-	nasPdu, err = nasDecode(u, nasConfigurationUpdateCommandRaw[:n])
-	if err != nil {
-		return fmt.Errorf("error decode nas configuration update command: %+v", err)
-	}
-	configurationUpdateCommand, ok := nasPdu.(*message.CfgUpdateCmd)
-	if !ok {
-		return fmt.Errorf("error nas pdu message type: %+v, expected configuration update command", nasPdu)
-	}
-	u.NasLog.Tracef("NAS configuration update command: %+v", configurationUpdateCommand)
-	u.NasLog.Debugln("Receive NAS Configuration Update Command from RAN")
 
 	u.RanLog.Infoln("UE Registration finished")
 	return nil
@@ -559,23 +505,10 @@ func (u *Ue) processPduSessionEstablishment() error {
 	u.NasLog.Debugln("Send UL NAS transport pdu session establishment request to RAN")
 
 	// receive pdu session establishment accept
-	nasPduSessionEstablishmentAcceptRaw := make([]byte, 1024)
-	n, err = u.ranControlPlaneConn.Read(nasPduSessionEstablishmentAcceptRaw)
+	dlNasTransport, err := readAndDecodeNas[*message.DLNASTransport](u, "NAS PDU Session Establishment Accept")
 	if err != nil {
-		return fmt.Errorf("error read nas pdu session establishment accept: %+v", err)
+		return err
 	}
-	u.NasLog.Tracef("Received %d bytes of NAS PDU Session Establishment Accept from RAN", n)
-
-	nasPdu, err := nasDecode(u, nasPduSessionEstablishmentAcceptRaw[:n])
-	if err != nil {
-		return fmt.Errorf("error decode nas pdu session establishment accept: %+v", err)
-	}
-	dlNasTransport, ok := nasPdu.(*message.DLNASTransport)
-	if !ok {
-		return fmt.Errorf("error nas pdu message type: %+v, expected pdu session establishment accept", nasPdu)
-	}
-	u.NasLog.Tracef("NAS PDU Session Establishment Accept: %+v", dlNasTransport)
-	u.NasLog.Debugln("Receive NAS PDU Session Establishment Accept from RAN")
 
 	// store ue information
 	if err := u.extractUeInformationFromNasPduSessionEstablishmentAccept(dlNasTransport); err != nil {
@@ -613,23 +546,9 @@ func (u *Ue) processUeDeregistration() error {
 	u.NasLog.Debugln("Send UE deregistration request to RAN")
 
 	// receive ue deregistration accept
-	ueDeRegistrationAcceptRaw := make([]byte, 1024)
-	n, err = u.ranControlPlaneConn.Read(ueDeRegistrationAcceptRaw)
-	if err != nil {
-		return fmt.Errorf("error read ue deregistration accept: %+v", err)
+	if _, err := readAndDecodeNas[*message.DeregAcceptUEOrig](u, "NAS UE Deregistration Accept"); err != nil {
+		return err
 	}
-	u.NasLog.Tracef("Received %d bytes of UE deregistration accept from RAN", n)
-
-	nasPdu, err := nasDecode(u, ueDeRegistrationAcceptRaw[:n])
-	if err != nil {
-		return fmt.Errorf("error decode ue deregistration accept: %+v", err)
-	}
-	ueDeRegistrationAccept, ok := nasPdu.(*message.DeregAcceptUEOrig)
-	if !ok {
-		return fmt.Errorf("error nas pdu message type: %+v, expected pdu session establishment accept", nasPdu)
-	}
-	u.NasLog.Tracef("NAS UE deregistration accept: %+v", ueDeRegistrationAccept)
-	u.NasLog.Debugln("Receive NAS UE deregistration accept from RAN")
 
 	u.RanLog.Infoln("UE deregistration complete")
 	return nil
@@ -686,42 +605,43 @@ func (u *Ue) extractUeInformationFromNasPduSessionEstablishmentAccept(dlNasTrans
 func (u *Ue) waitForRanMessage(ctx context.Context, wg *sync.WaitGroup) {
 	u.RanLog.Infoln("Waiting for RAN message")
 	wg.Add(1)
+	defer wg.Done()
+
+	stopWatch := make(chan struct{})
+	defer close(stopWatch)
+	go func() {
+		select {
+		case <-ctx.Done():
+			if err := u.ranControlPlaneConn.SetReadDeadline(time.Now()); err != nil {
+				u.RanLog.Errorf("Error set read deadline: %+v", err)
+			}
+		case <-stopWatch:
+		}
+	}()
 
 	buffer := make([]byte, 1024)
 	for {
-		if err := u.ranControlPlaneConn.SetReadDeadline(time.Now().Add(1 * time.Second)); err != nil {
-			u.RanLog.Errorf("Error set read deadline: %+v", err)
-			goto STOP_WAITING
+		n, err := u.ranControlPlaneConn.Read(buffer)
+		if err != nil {
+			if ctx.Err() != nil || errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
+				break
+			}
+			u.RanLog.Warnf("Error read from ran control plane: %+v", err)
+			continue
 		}
-		select {
-		case <-ctx.Done():
-			if err := u.ranControlPlaneConn.SetReadDeadline(time.Time{}); err != nil {
-				u.RanLog.Errorf("Error set read deadline: %+v", err)
-			}
-			goto STOP_WAITING
-		default:
-			n, err := u.ranControlPlaneConn.Read(buffer)
-			if err != nil {
-				if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
-					goto STOP_WAITING
-				}
-				if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-					continue
-				}
-				u.RanLog.Warnf("Error read from ran control plane: %+v", err)
-			}
 
-			switch string(buffer[:n]) {
-			case constant.UE_TUNNEL_UPDATE:
-				go u.updateDataPlane()
-			default:
-				u.RanLog.Warnf("Received unknown message from RAN: %+v", buffer[:n])
-			}
+		switch string(buffer[:n]) {
+		case constant.UE_TUNNEL_UPDATE:
+			go u.updateDataPlane()
+		default:
+			u.RanLog.Warnf("Received unknown message from RAN: %+v", buffer[:n])
 		}
 	}
-STOP_WAITING:
+
+	if err := u.ranControlPlaneConn.SetReadDeadline(time.Time{}); err != nil {
+		u.RanLog.Errorf("Error set read deadline: %+v", err)
+	}
 	u.RanLog.Infoln("Stop waiting for RAN message")
-	wg.Done()
 }
 
 func (u *Ue) setupTunnelDevice() error {

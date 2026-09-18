@@ -18,6 +18,30 @@ func nasDecode(ue *Ue, payload []byte) (message.Message, error) {
 	return message.Parse(payload, ue.secCtx)
 }
 
+func readAndDecodeNas[T message.Message](u *Ue, label string) (T, error) {
+	var zero T
+
+	buf := make([]byte, 1024)
+	n, err := u.ranControlPlaneConn.Read(buf)
+	if err != nil {
+		return zero, fmt.Errorf("error read %s: %+v", label, err)
+	}
+	u.NasLog.Tracef("Received %d bytes of %s from RAN", n, label)
+
+	nasPdu, err := nasDecode(u, buf[:n])
+	if err != nil {
+		return zero, fmt.Errorf("error decode %s: %+v", label, err)
+	}
+	typed, ok := nasPdu.(T)
+	if !ok {
+		return zero, fmt.Errorf("error nas pdu message type: %+v, expected %s", nasPdu, label)
+	}
+	u.NasLog.Tracef("%s: %+v", label, typed)
+	u.NasLog.Debugf("Receive %s from RAN", label)
+
+	return typed, nil
+}
+
 func nasEncode(m message.Message, sc *message.SecCtx, hdrType message.SecHdrType) ([]byte, error) {
 	if m == nil {
 		return nil, errors.New("nasMessage is nil")

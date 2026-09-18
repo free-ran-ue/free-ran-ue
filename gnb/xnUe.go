@@ -24,8 +24,8 @@ func NewXnUe(imsi string, dlTeid []byte, dataPlaneAddress *net.UDPAddr) *XnUe {
 	}
 }
 
-func (x *XnUe) Release(teidGenerator *TeidGenerator) {
-	teidGenerator.ReleaseTeid(x.dlTeid)
+func (x *XnUe) Release(teidGenerator *TeidGenerator) error {
+	return teidGenerator.ReleaseTeid(x.dlTeid)
 }
 
 func (x *XnUe) GetIMSI() string {

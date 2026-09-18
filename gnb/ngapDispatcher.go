@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/free-ran-ue/free-ran-ue/v2/constant"
+	"github.com/free-ran-ue/util"
 	"github.com/free5gc/ngap/ie"
 	"github.com/free5gc/ngap/message"
 )
@@ -239,7 +240,7 @@ func (d *ngapDispatcher) pduSessionResourceSetupProcessor(g *Gnb, msg *message.P
 	g.NgapLog.Tracef("Sent %d bytes of pdu session resource setup response to AMF", n)
 	g.NgapLog.Debugln("Send pdu session resource setup response to AMF")
 
-	ranUe.GetPduSessionEstablishmentCompleteChan() <- struct{}{}
+	util.SignalComplete(ranUe.GetPduSessionEstablishmentCompleteChan())
 }
 
 func (d *ngapDispatcher) ueContextReleaseProcessor(g *Gnb, msg *message.UEContextReleaseCommand) {
@@ -282,7 +283,7 @@ func (d *ngapDispatcher) ueContextReleaseProcessor(g *Gnb, msg *message.UEContex
 	g.NgapLog.Tracef("Sent %d bytes of ngap ue context release complete message to AMF", n)
 	g.NgapLog.Debugln("Send ngap ue context release complete message to AMF")
 
-	ranUe.GetUeContextReleaseCompleteChan() <- struct{}{}
+	util.SignalComplete(ranUe.GetUeContextReleaseCompleteChan())
 }
 
 func (d *ngapDispatcher) pduSessionResourceModifyIndicationProcessor(g *Gnb, msg *message.PDUSessionResourceModifyConfirm, ngapRaw []byte) {
@@ -343,5 +344,5 @@ func (d *ngapDispatcher) pduSessionResourceModifyIndicationProcessor(g *Gnb, msg
 		g.NgapLog.Infof("UE %s NRDC activated", ranUe.GetMobileIdentityIMSI())
 	}
 
-	ranUe.GetPduSessionModifyIndicationCompleteChan() <- struct{}{}
+	util.SignalComplete(ranUe.GetPduSessionModifyIndicationCompleteChan())
 }

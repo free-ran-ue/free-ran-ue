@@ -1,4 +1,4 @@
-.PHONY: all bin console console-init ns-up ns-down ns-ran ns-ue dc-ns-up dc-ns-down dc-ns-mran dc-ns-sran dc-ns-ue
+.PHONY: all bin lint tidy console console-init ns-up ns-down ns-ran ns-ue dc-ns-up dc-ns-down dc-ns-mran dc-ns-sran dc-ns-ue
 
 .DEFAULT_GOAL := bin
 
@@ -7,6 +7,12 @@ all: bin console-init
 # Build the binary
 bin:
 	go build -o build/free-ran-ue main.go
+
+lint:
+	golangci-lint run
+
+tidy:
+	go mod tidy
 
 # Build the console
 console:
