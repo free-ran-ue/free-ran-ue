@@ -736,6 +736,28 @@ func (g *Gnb) handleUeDataPlanePacket(ueAddress *net.UDPAddr, buffer []byte) {
 	go formatGtpPacketAndWriteToGtpChannel(dataPlaneUe.GetUlTeid(), buffer, g.gtpChannel, g.GnbLogger)
 }
 
+func (g *Gnb) relayUplinkNas(ranUe *RanUe, label string) error {
+	buf := make([]byte, 1024)
+	n, err := ranUe.GetN1Conn().Read(buf)
+	if err != nil {
+		return fmt.Errorf("error receive %s from UE: %v", label, err)
+	}
+	g.NasLog.Tracef("Received %d bytes of %s from UE", n, label)
+	g.NasLog.Debugf("Receive %s from UE", label)
+
+	uplinkNasTransport, err := getUplinkNasTransport(ranUe.GetAmfUeId(), ranUe.GetRanUeId(), g.plmnId, g.tai, buf[:n], g.gnbId)
+	if err != nil {
+		return fmt.Errorf("error get uplink nas transport: %v", err)
+	}
+	g.NgapLog.Tracef("Get uplink NAS transport: %+v", uplinkNasTransport)
+
+	if _, err := g.n2Conn.Write(uplinkNasTransport); err != nil {
+		return fmt.Errorf("error send uplink nas transport to AMF: %v", err)
+	}
+	g.NgapLog.Debugf("Sent %s to AMF as uplink NAS transport", label)
+	return nil
+}
+
 func (g *Gnb) processUeInitialization(ranUe *RanUe) error {
 	g.RanLog.Infoln("Processing UE initialization")
 
@@ -773,75 +795,21 @@ func (g *Gnb) processUeInitialization(ranUe *RanUe) error {
 
 	// wait dispatcher to receive nas authentication request from AMF and send to UE
 
-	// receive nas authentication response from UE and send to AMF
-	nasAuthenticationResponse := make([]byte, 1024)
-	n, err = ranUe.GetN1Conn().Read(nasAuthenticationResponse)
-	if err != nil {
-		return fmt.Errorf("error receive nas authentication response from UE: %v", err)
+	if err := g.relayUplinkNas(ranUe, "NAS Authentication Response"); err != nil {
+		return err
 	}
-	g.NasLog.Tracef("Received %d bytes of NAS Authentication Response from UE", n)
-	g.NasLog.Debugln("Receive NAS Authentication Response from UE")
-
-	uplinkNasTransport, err := getUplinkNasTransport(ranUe.GetAmfUeId(), ranUe.GetRanUeId(), g.plmnId, g.tai, nasAuthenticationResponse[:n], g.gnbId)
-	if err != nil {
-		return fmt.Errorf("error get uplink nas transport: %v", err)
-	}
-	g.NgapLog.Tracef("Get uplink NAS transport: %+v", uplinkNasTransport)
-
-	n, err = g.n2Conn.Write(uplinkNasTransport)
-	if err != nil {
-		return fmt.Errorf("error send uplink nas transport to AMF: %v", err)
-	}
-	g.NgapLog.Tracef("Sent %d bytes of uplink NAS transport to AMF", n)
-	g.NgapLog.Debugln("Sent uplink NAS transport to AMF")
 
 	// wait dispatcher to receive nas security mode command message from AMF and send to UE
 
-	// receive nas security mode complete message from UE and send to AMF
-	nasSecurityModeComplete := make([]byte, 1024)
-	n, err = ranUe.GetN1Conn().Read(nasSecurityModeComplete)
-	if err != nil {
-		return fmt.Errorf("error receive nas security mode complete from UE: %v", err)
+	if err := g.relayUplinkNas(ranUe, "NAS Security Mode Complete"); err != nil {
+		return err
 	}
-	g.NasLog.Tracef("Received %d bytes of NAS Security Mode Complete from UE", n)
-	g.NasLog.Debugln("Receive NAS Security Mode Complete from UE")
-
-	uplinkNasTransport, err = getUplinkNasTransport(ranUe.GetAmfUeId(), ranUe.GetRanUeId(), g.plmnId, g.tai, nasSecurityModeComplete[:n], g.gnbId)
-	if err != nil {
-		return fmt.Errorf("error get uplink nas transport: %v", err)
-	}
-	g.NgapLog.Tracef("Get uplink NAS transport: %+v", uplinkNasTransport)
-
-	n, err = g.n2Conn.Write(uplinkNasTransport)
-	if err != nil {
-		return fmt.Errorf("error send uplink nas transport to AMF: %v", err)
-	}
-	g.NgapLog.Tracef("Sent %d bytes of uplink NAS transport to AMF", n)
-	g.NgapLog.Debugln("Sent uplink NAS transport to AMF")
 
 	// wait dispatcher to receive ngap initial context setup request from AMF
 
-	// receive nas registration complete message from UE and send to AMF
-	nasRegistrationComplete := make([]byte, 1024)
-	n, err = ranUe.GetN1Conn().Read(nasRegistrationComplete)
-	if err != nil {
-		return fmt.Errorf("error receive nas registration complete from UE: %v", err)
+	if err := g.relayUplinkNas(ranUe, "NAS Registration Complete"); err != nil {
+		return err
 	}
-	g.NasLog.Tracef("Received %d bytes of NAS Registration Complete from UE", n)
-	g.NasLog.Debugln("Receive NAS Registration Complete from UE")
-
-	uplinkNasTransport, err = getUplinkNasTransport(ranUe.GetAmfUeId(), ranUe.GetRanUeId(), g.plmnId, g.tai, nasRegistrationComplete[:n], g.gnbId)
-	if err != nil {
-		return fmt.Errorf("error get uplink nas transport: %v", err)
-	}
-	g.NgapLog.Tracef("Get uplink NAS transport: %+v", uplinkNasTransport)
-
-	n, err = g.n2Conn.Write(uplinkNasTransport)
-	if err != nil {
-		return fmt.Errorf("error send uplink nas transport to AMF: %v", err)
-	}
-	g.NgapLog.Tracef("Sent %d bytes of uplink NAS transport to AMF", n)
-	g.NgapLog.Debugln("Send NAS Registration Complete to AMF")
 
 	// wait dispatcher to receive ue configuration update command message from AMF
 
@@ -853,26 +821,9 @@ func (g *Gnb) processUePduSessionEstablishment(ranUe *RanUe) error {
 	g.NgapLog.Infof("Processing UE %s PDU session establishment", ranUe.GetMobileIdentityIMSI())
 
 	// receive pdu session establishment request from UE and send to AMF
-	pduSessionEstablishmentRequest := make([]byte, 1024)
-	n, err := ranUe.GetN1Conn().Read(pduSessionEstablishmentRequest)
-	if err != nil {
-		return fmt.Errorf("error receive pdu session establishment request from UE: %v", err)
+	if err := g.relayUplinkNas(ranUe, "PDU Session Establishment Request"); err != nil {
+		return err
 	}
-	g.NasLog.Tracef("Received %d bytes of PDU Session Establishment Request from UE", n)
-	g.NasLog.Debugln("Receive PDU Session Establishment Request from UE")
-
-	uplinkNasTransport, err := getUplinkNasTransport(ranUe.GetAmfUeId(), ranUe.GetRanUeId(), g.plmnId, g.tai, pduSessionEstablishmentRequest[:n], g.gnbId)
-	if err != nil {
-		return fmt.Errorf("error get uplink nas transport: %v", err)
-	}
-	g.NgapLog.Tracef("Get uplink NAS transport: %+v", uplinkNasTransport)
-
-	n, err = g.n2Conn.Write(uplinkNasTransport)
-	if err != nil {
-		return fmt.Errorf("error send uplink nas transport to AMF: %v", err)
-	}
-	g.NgapLog.Tracef("Sent %d bytes of uplink NAS transport to AMF", n)
-	g.NgapLog.Debugln("Send PDU Session Establishment Request to AMF")
 
 	// wait dispatcher to receive ngap pdu session resource setup request from AMF
 
@@ -924,26 +875,9 @@ func (g *Gnb) processUeDeRegistration(ranUe *RanUe) error {
 	g.RanLog.Infoln("Waiting for UE to deregister")
 
 	// receive ue deregistration request from UE and send to AMF
-	ueDeRegistrationRequest := make([]byte, 1024)
-	n, err := ranUe.GetN1Conn().Read(ueDeRegistrationRequest)
-	if err != nil {
-		return fmt.Errorf("error reading from UE connection: %v", err)
+	if err := g.relayUplinkNas(ranUe, "UE Deregistration Request"); err != nil {
+		return err
 	}
-	g.RanLog.Tracef("Received %d bytes of UE deregistration request from UE: %+v", n, ueDeRegistrationRequest[:n])
-	g.RanLog.Tracef("Received %d bytes of UE deregistration request from UE", n)
-
-	uplinkNasTransport, err := getUplinkNasTransport(ranUe.GetAmfUeId(), ranUe.GetRanUeId(), g.plmnId, g.tai, ueDeRegistrationRequest[:n], g.gnbId)
-	if err != nil {
-		return fmt.Errorf("error get uplink nas transport: %v", err)
-	}
-	g.NgapLog.Tracef("Get uplink NAS transport: %+v", uplinkNasTransport)
-
-	n, err = g.n2Conn.Write(uplinkNasTransport)
-	if err != nil {
-		return fmt.Errorf("error send uplink nas transport to AMF: %v", err)
-	}
-	g.NgapLog.Tracef("Sent %d bytes of uplink NAS transport to AMF", n)
-	g.NgapLog.Debugln("Send UE deregistration request to AMF")
 
 	// wait dispatcher to receive ue deregistration accept from AMF
 	if err := util.WaitComplete(ranUe.GetUeContextReleaseCompleteChan(), 10*time.Second); err != nil {
