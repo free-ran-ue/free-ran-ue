@@ -920,51 +920,15 @@ func (g *Gnb) xnPduSessionResourceSetupRequestTransfer(imsi string, ngapPduSessi
 
 	var qosFlowPerTNLInformationItem ie.QosFlowPerTNLInformationItem
 
-	xnConn, err := util.TcpDialWithOptionalLocalAddress(g.xnInterface.xnDialIp, g.xnInterface.xnDialPort, "")
+	respData, err := g.xnRoundTrip(imsi, ngapPduSessionResourceSetupRequestRaw)
 	if err != nil {
-		return qosFlowPerTNLInformationItem, fmt.Errorf("error dial xn: %v", err)
-	}
-	g.XnLog.Debugf("Dial XN at %s:%d", g.xnInterface.xnDialIp, g.xnInterface.xnDialPort)
-
-	xnPdu := NewXnPdu(imsi, ngapPduSessionResourceSetupRequestRaw)
-	xnPduBytes, err := xnPdu.Marshal()
-	if err != nil {
-		return qosFlowPerTNLInformationItem, fmt.Errorf("error marshal xn pdu: %v", err)
+		return qosFlowPerTNLInformationItem, err
 	}
 
-	n, err := xnConn.Write(xnPduBytes)
-	if err != nil {
-		return qosFlowPerTNLInformationItem, fmt.Errorf("error send ngap pdu session resource setup request to xn: %v", err)
-	}
-	g.XnLog.Tracef("Sent %d bytes of NGAP PDU Session Resource Setup Request to XN", n)
-	g.XnLog.Debugln("Send NGAP PDU Session Resource Setup Request to XN")
-
-	if err = xnConn.SetReadDeadline(time.Now().Add(time.Second * 5)); err != nil {
-		return qosFlowPerTNLInformationItem, fmt.Errorf("error set read deadline: %v", err)
-	}
-	buffer := make([]byte, 4096)
-	n, err = xnConn.Read(buffer)
-	if err != nil {
-		return qosFlowPerTNLInformationItem, fmt.Errorf("error read ngap pdu session resource setup response from xn: %v", err)
-	}
-	g.XnLog.Tracef("Received %d bytes of NGAP PDU Session Resource Setup Response from XN", n)
-	g.XnLog.Debugln("Receive NGAP PDU Session Resource Setup Response from XN")
-
-	xnPdu = &XnPdu{}
-	if err := xnPdu.Unmarshal(buffer[:n]); err != nil {
-		return qosFlowPerTNLInformationItem, fmt.Errorf("error unmarshal xn pdu: %v", err)
-	}
-	g.XnLog.Tracef("Received XN PDU: %+v", xnPdu)
-	g.XnLog.Debugln("Receive XN PDU")
-
-	if err := ie.UnmarshalBinary(xnPdu.Data, &qosFlowPerTNLInformationItem); err != nil {
+	if err := ie.UnmarshalBinary(respData, &qosFlowPerTNLInformationItem); err != nil {
 		return qosFlowPerTNLInformationItem, fmt.Errorf("error unmarshal qos flow per tnl information item: %v", err)
 	}
 	g.XnLog.Tracef("Get QoS Flow per TNL Information Item: %+v", qosFlowPerTNLInformationItem)
-
-	if err := xnConn.Close(); err != nil {
-		return qosFlowPerTNLInformationItem, fmt.Errorf("error close xn connection: %v", err)
-	}
 
 	g.XnLog.Infoln("XN PDU Session Resource Setup Request Transfer completed")
 	return qosFlowPerTNLInformationItem, nil
@@ -973,88 +937,22 @@ func (g *Gnb) xnPduSessionResourceSetupRequestTransfer(imsi string, ngapPduSessi
 func (g *Gnb) xnPduSessionResourceModifyIndication(imsi string, ngapPduSessionResourceModifyIndicationRaw []byte) ([]byte, error) {
 	g.XnLog.Infoln("Processing XN PDU Session Resource Modify Indication Transfer")
 
-	xnConn, err := util.TcpDialWithOptionalLocalAddress(g.xnInterface.xnDialIp, g.xnInterface.xnDialPort, "")
-	if err != nil {
-		return nil, fmt.Errorf("error dial xn: %v", err)
-	}
-	g.XnLog.Debugf("Dial XN at %s:%d", g.xnInterface.xnDialIp, g.xnInterface.xnDialPort)
-
-	xnPdu := NewXnPdu(imsi, ngapPduSessionResourceModifyIndicationRaw)
-	xnPduBytes, err := xnPdu.Marshal()
-	if err != nil {
-		return nil, fmt.Errorf("error marshal xn pdu: %v", err)
-	}
-
-	n, err := xnConn.Write(xnPduBytes)
-	if err != nil {
-		return nil, fmt.Errorf("error send ngap pdu session resource modify indication transfer to xn: %v", err)
-	}
-	g.XnLog.Tracef("Sent %d bytes of NGAP PDU Session Resource Modify Indication Transfer to XN", n)
-	g.XnLog.Debugln("Send NGAP PDU Session Resource Modify Indication Transfer to XN")
-
 	// if the modify is from 2 -> 1, here will read the same pdu as the request
 	// if the modify is from 1 -> 2, here will read the appended pdu with secondary tunnel information
-	if err = xnConn.SetReadDeadline(time.Now().Add(time.Second * 5)); err != nil {
-		return nil, fmt.Errorf("error set read deadline: %v", err)
-	}
-	buffer := make([]byte, 4096)
-	n, err = xnConn.Read(buffer)
+	respData, err := g.xnRoundTrip(imsi, ngapPduSessionResourceModifyIndicationRaw)
 	if err != nil {
-		return nil, fmt.Errorf("error read ngap pdu session resource modify indication response from xn: %v", err)
-	}
-	g.XnLog.Tracef("Received %d bytes of NGAP PDU Session Resource Modify Indication Response from XN", n)
-	g.XnLog.Debugln("Receive NGAP PDU Session Resource Modify Indication Response from XN")
-
-	xnPdu = &XnPdu{}
-	if err := xnPdu.Unmarshal(buffer[:n]); err != nil {
-		return nil, fmt.Errorf("error unmarshal xn pdu: %v", err)
-	}
-	g.XnLog.Tracef("Received XN PDU: %+v", xnPdu)
-	g.XnLog.Debugln("Receive XN PDU")
-
-	if err := xnConn.Close(); err != nil {
-		return xnPdu.Data, fmt.Errorf("error close xn connection: %v", err)
+		return respData, err
 	}
 
 	g.XnLog.Infoln("XN PDU Session Resource Modify Indication Transfer completed")
-	return xnPdu.Data, nil
+	return respData, nil
 }
 
 func (g *Gnb) xnPduSessionResourceModifyConfirm(imsi string, ngapPduSessionResourceModifyConfirmRaw []byte) ([]byte, error) {
 	g.XnLog.Infoln("Processing XN PDU Session Resource Modify Confirm")
 
-	xnConn, err := util.TcpDialWithOptionalLocalAddress(g.xnInterface.xnDialIp, g.xnInterface.xnDialPort, "")
-	if err != nil {
-		return nil, fmt.Errorf("error dial xn: %v", err)
-	}
-	g.XnLog.Debugf("Dial XN at %s:%d", g.xnInterface.xnDialIp, g.xnInterface.xnDialPort)
-
-	xnPdu := NewXnPdu(imsi, ngapPduSessionResourceModifyConfirmRaw)
-	xnPduBytes, err := xnPdu.Marshal()
-	if err != nil {
-		return nil, fmt.Errorf("error marshal xn pdu: %v", err)
-	}
-
-	n, err := xnConn.Write(xnPduBytes)
-	if err != nil {
-		return nil, fmt.Errorf("error send ngap pdu session resource modify confirm to xn: %v", err)
-	}
-	g.XnLog.Tracef("Sent %d bytes of NGAP PDU Session Resource Modify Confirm to XN", n)
-	g.XnLog.Debugln("Send NGAP PDU Session Resource Modify Confirm to XN")
-
-	if err = xnConn.SetReadDeadline(time.Now().Add(time.Second * 5)); err != nil {
-		return nil, fmt.Errorf("error set read deadline: %v", err)
-	}
-	buffer := make([]byte, 4096)
-	n, err = xnConn.Read(buffer)
-	if err != nil {
-		return nil, fmt.Errorf("error read ngap pdu session resource modify confirm response from xn: %v", err)
-	}
-	g.XnLog.Tracef("Received %d bytes of NGAP PDU Session Resource Modify Confirm Response from XN", n)
-	g.XnLog.Debugln("Receive NGAP PDU Session Resource Modify Confirm Response from XN")
-
-	if err := xnConn.Close(); err != nil {
-		return nil, fmt.Errorf("error close xn connection: %v", err)
+	if _, err := g.xnRoundTrip(imsi, ngapPduSessionResourceModifyConfirmRaw); err != nil {
+		return nil, err
 	}
 
 	g.XnLog.Infoln("XN PDU Session Resource Modify Confirm completed")

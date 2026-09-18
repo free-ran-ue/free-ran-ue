@@ -5,8 +5,10 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/free-ran-ue/free-ran-ue/v2/constant"
+	"github.com/free-ran-ue/util"
 	"github.com/free5gc/ngap/aper"
 	"github.com/free5gc/ngap/ie"
 	"github.com/free5gc/ngap/message"
@@ -56,6 +58,52 @@ func (x *XnPdu) Unmarshal(data []byte) error {
 	x.Data = data
 
 	return nil
+}
+
+// xnRoundTrip dials the XN peer, sends payload wrapped in an XnPdu tagged with imsi, waits up to 5s for a reply, and returns the reply's raw data.
+// It is the shared dial-write-wait-read-close cycle behind every Xn RPC.
+func (g *Gnb) xnRoundTrip(imsi string, payload []byte) (respData []byte, err error) {
+	xnConn, err := util.TcpDialWithOptionalLocalAddress(g.xnInterface.xnDialIp, g.xnInterface.xnDialPort, "")
+	if err != nil {
+		return nil, fmt.Errorf("error dial xn: %v", err)
+	}
+	g.XnLog.Debugf("Dial XN at %s:%d", g.xnInterface.xnDialIp, g.xnInterface.xnDialPort)
+	defer func() {
+		if closeErr := xnConn.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("error close xn connection: %v", closeErr)
+		}
+	}()
+
+	xnPduBytes, err := NewXnPdu(imsi, payload).Marshal()
+	if err != nil {
+		return nil, fmt.Errorf("error marshal xn pdu: %v", err)
+	}
+
+	n, err := xnConn.Write(xnPduBytes)
+	if err != nil {
+		return nil, fmt.Errorf("error send xn pdu: %v", err)
+	}
+	g.XnLog.Tracef("Sent %d bytes of XN PDU", n)
+	g.XnLog.Debugln("Send XN PDU")
+
+	if err = xnConn.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		return nil, fmt.Errorf("error set read deadline: %v", err)
+	}
+	buffer := make([]byte, 4096)
+	n, err = xnConn.Read(buffer)
+	if err != nil {
+		return nil, fmt.Errorf("error read xn pdu response: %v", err)
+	}
+	g.XnLog.Tracef("Received %d bytes of XN PDU response", n)
+	g.XnLog.Debugln("Receive XN PDU response")
+
+	respPdu := &XnPdu{}
+	if err = respPdu.Unmarshal(buffer[:n]); err != nil {
+		return nil, fmt.Errorf("error unmarshal xn pdu: %v", err)
+	}
+	g.XnLog.Tracef("Received XN PDU: %+v", respPdu)
+
+	return respPdu.Data, nil
 }
 
 func xnInterfaceProcessor(conn net.Conn, g *Gnb) {
