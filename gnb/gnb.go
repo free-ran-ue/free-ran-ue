@@ -669,15 +669,20 @@ func (g *Gnb) handleUeDataPlaneInitialPacket(ueAddress *net.UDPAddr, imsi string
 		return
 	}
 
+	dataPlaneUe, ok := ue.(Ue)
+	if !ok {
+		g.RanLog.Errorf("Unexpected UE type for DL TEID: %s", hex.EncodeToString(dlTeidAndUeTypeInstance.dlTeid))
+		return
+	}
+
+	dataPlaneUe.SetDataPlaneAddress(ueAddress)
+	g.addressToUe.Store(ueAddress.String(), ue)
+
 	switch dlTeidAndUeTypeInstance.ueType {
 	case constant.UE_TYPE_RAN:
-		ue.(*RanUe).SetDataPlaneAddress(ueAddress)
-		g.addressToUe.Store(ueAddress.String(), ue)
-		g.RanLog.Infof("Set data plane address %s for UE: %s", ueAddress.String(), ue.(*RanUe).GetMobileIdentityIMSI())
+		g.RanLog.Infof("Set data plane address %s for UE: %s", ueAddress.String(), dataPlaneUe.Identity())
 	case constant.UE_TYPE_XN:
-		ue.(*XnUe).SetDataPlaneAddress(ueAddress)
-		g.addressToUe.Store(ueAddress.String(), ue)
-		g.XnLog.Infof("Set data plane address %s for UE: %s", ueAddress.String(), ue.(*XnUe).GetIMSI())
+		g.XnLog.Infof("Set data plane address %s for UE: %s", ueAddress.String(), dataPlaneUe.Identity())
 	}
 }
 
@@ -688,12 +693,13 @@ func (g *Gnb) handleUeDataPlanePacket(ueAddress *net.UDPAddr, buffer []byte) {
 		return
 	}
 
-	switch u := ue.(type) {
-	case *RanUe:
-		go formatGtpPacketAndWriteToGtpChannel(u.GetUlTeid(), buffer, g.gtpChannel, g.GnbLogger)
-	case *XnUe:
-		go formatGtpPacketAndWriteToGtpChannel(u.GetUlTeid(), buffer, g.gtpChannel, g.GnbLogger)
+	dataPlaneUe, ok := ue.(Ue)
+	if !ok {
+		g.RanLog.Errorf("Unexpected UE type for data plane address: %s", ueAddress.String())
+		return
 	}
+
+	go formatGtpPacketAndWriteToGtpChannel(dataPlaneUe.GetUlTeid(), buffer, g.gtpChannel, g.GnbLogger)
 }
 
 func (g *Gnb) processUeInitialization(ranUe *RanUe) error {

@@ -32,6 +32,10 @@ func (x *XnUe) GetIMSI() string {
 	return x.imsi
 }
 
+func (x *XnUe) Identity() string {
+	return x.GetIMSI()
+}
+
 func (x *XnUe) GetUlTeid() []byte {
 	return x.ulTeid
 }

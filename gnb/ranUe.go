@@ -113,6 +113,10 @@ func (r *RanUe) GetMobileIdentityIMSI() string {
 	return fmt.Sprintf("%s%s%s%s", constant.UE_IMSI_PREFIX, parts[2], parts[3], parts[7])
 }
 
+func (r *RanUe) Identity() string {
+	return r.GetMobileIdentityIMSI()
+}
+
 func (r *RanUe) GetUlTeid() []byte {
 	return r.ulTeid
 }
