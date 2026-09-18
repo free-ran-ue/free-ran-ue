@@ -87,6 +87,7 @@ type Gnb struct {
 	dlTeidToUe            sync.Map // dlTeid -> *(Ran/Xn)Ue
 	addressToUe           sync.Map // UDP address -> *(Ran/Xn)Ue
 	imsiTodlTeidAndUeType sync.Map // imsi -> dlTeidAndUeType
+	imsiReadyChans        sync.Map // imsi -> chan struct{}
 
 	gtpChannel chan []byte
 
@@ -178,6 +179,7 @@ func NewGnb(config *model.GnbConfig, gnbLogger *logger.GnbLogger) *Gnb {
 		dlTeidToUe:            sync.Map{},
 		addressToUe:           sync.Map{},
 		imsiTodlTeidAndUeType: sync.Map{},
+		imsiReadyChans:        sync.Map{},
 
 		ranUeNgapIdGenerator: NewRanUeNgapIdGenerator(),
 		teidGenerator:        NewTeidGenerator(),
@@ -515,6 +517,8 @@ func (g *Gnb) setupN1(ranUe *RanUe) error {
 		dlTeid: ranUe.GetDlTeid(),
 		ueType: constant.UE_TYPE_RAN,
 	})
+
+	g.markImsiReady(ranUe.GetMobileIdentityIMSI())
 	g.GtpLog.Debugf("Sent DL TEID %s to imsiTodlTeidAndUeType", hex.EncodeToString(ranUe.GetDlTeid()))
 
 	g.RanLog.Infof("UE %s N1 setup complete", ranUe.GetMobileIdentityIMSI())
@@ -645,21 +649,38 @@ func (g *Gnb) startDataPlaneProcessor() {
 	}
 }
 
-func (g *Gnb) handleUeDataPlaneInitialPacket(ueAddress *net.UDPAddr, imsi string) {
-	var dlTeidAndUeTypeInstance dlTeidAndUeType
-	for try := 0; ; try += 1 {
-		dlTeidAndUeTypeValue, exists := g.imsiTodlTeidAndUeType.Load(imsi)
-		if !exists {
-			if try == 100 {
-				g.RanLog.Errorf("No DL TEID and UE type found for IMSI: %s", imsi)
-				return
-			}
-			time.Sleep(100 * time.Millisecond)
-		} else {
-			dlTeidAndUeTypeInstance = dlTeidAndUeTypeValue.(dlTeidAndUeType)
-			break
-		}
+func (g *Gnb) markImsiReady(imsi string) {
+	chVal, _ := g.imsiReadyChans.LoadOrStore(imsi, make(chan struct{}, 1))
+	select {
+	case chVal.(chan struct{}) <- struct{}{}:
+	default:
 	}
+}
+
+func (g *Gnb) waitImsiReady(imsi string, timeout time.Duration) error {
+	chVal, _ := g.imsiReadyChans.LoadOrStore(imsi, make(chan struct{}, 1))
+	defer g.imsiReadyChans.Delete(imsi)
+
+	select {
+	case <-chVal.(chan struct{}):
+		return nil
+	case <-time.After(timeout):
+		return fmt.Errorf("timed out waiting for dl teid and ue type of imsi: %s", imsi)
+	}
+}
+
+func (g *Gnb) handleUeDataPlaneInitialPacket(ueAddress *net.UDPAddr, imsi string) {
+	if err := g.waitImsiReady(imsi, 10*time.Second); err != nil {
+		g.RanLog.Errorf("No DL TEID and UE type found for IMSI: %s: %v", imsi, err)
+		return
+	}
+
+	dlTeidAndUeTypeValue, exists := g.imsiTodlTeidAndUeType.Load(imsi)
+	if !exists {
+		g.RanLog.Errorf("No DL TEID and UE type found for IMSI: %s", imsi)
+		return
+	}
+	dlTeidAndUeTypeInstance := dlTeidAndUeTypeValue.(dlTeidAndUeType)
 
 	g.imsiTodlTeidAndUeType.Delete(imsi)
 

@@ -686,42 +686,43 @@ func (u *Ue) extractUeInformationFromNasPduSessionEstablishmentAccept(dlNasTrans
 func (u *Ue) waitForRanMessage(ctx context.Context, wg *sync.WaitGroup) {
 	u.RanLog.Infoln("Waiting for RAN message")
 	wg.Add(1)
+	defer wg.Done()
+
+	stopWatch := make(chan struct{})
+	defer close(stopWatch)
+	go func() {
+		select {
+		case <-ctx.Done():
+			if err := u.ranControlPlaneConn.SetReadDeadline(time.Now()); err != nil {
+				u.RanLog.Errorf("Error set read deadline: %+v", err)
+			}
+		case <-stopWatch:
+		}
+	}()
 
 	buffer := make([]byte, 1024)
 	for {
-		if err := u.ranControlPlaneConn.SetReadDeadline(time.Now().Add(1 * time.Second)); err != nil {
-			u.RanLog.Errorf("Error set read deadline: %+v", err)
-			goto STOP_WAITING
+		n, err := u.ranControlPlaneConn.Read(buffer)
+		if err != nil {
+			if ctx.Err() != nil || errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
+				break
+			}
+			u.RanLog.Warnf("Error read from ran control plane: %+v", err)
+			continue
 		}
-		select {
-		case <-ctx.Done():
-			if err := u.ranControlPlaneConn.SetReadDeadline(time.Time{}); err != nil {
-				u.RanLog.Errorf("Error set read deadline: %+v", err)
-			}
-			goto STOP_WAITING
-		default:
-			n, err := u.ranControlPlaneConn.Read(buffer)
-			if err != nil {
-				if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
-					goto STOP_WAITING
-				}
-				if netErr, ok := err.(net.Error); ok && netErr.Timeout() {
-					continue
-				}
-				u.RanLog.Warnf("Error read from ran control plane: %+v", err)
-			}
 
-			switch string(buffer[:n]) {
-			case constant.UE_TUNNEL_UPDATE:
-				go u.updateDataPlane()
-			default:
-				u.RanLog.Warnf("Received unknown message from RAN: %+v", buffer[:n])
-			}
+		switch string(buffer[:n]) {
+		case constant.UE_TUNNEL_UPDATE:
+			go u.updateDataPlane()
+		default:
+			u.RanLog.Warnf("Received unknown message from RAN: %+v", buffer[:n])
 		}
 	}
-STOP_WAITING:
+
+	if err := u.ranControlPlaneConn.SetReadDeadline(time.Time{}); err != nil {
+		u.RanLog.Errorf("Error set read deadline: %+v", err)
+	}
 	u.RanLog.Infoln("Stop waiting for RAN message")
-	wg.Done()
 }
 
 func (u *Ue) setupTunnelDevice() error {

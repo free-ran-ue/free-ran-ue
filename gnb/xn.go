@@ -237,6 +237,8 @@ func xnPduSessionResourceSetupProcessor(g *Gnb, conn net.Conn, imsi string, msg 
 		dlTeid: xnUe.GetDlTeid(),
 		ueType: constant.UE_TYPE_XN,
 	})
+
+	g.markImsiReady(imsi)
 	g.XnLog.Debugf("Sent DL TEID %s to imsiTodlTeidAndUeType", hex.EncodeToString(xnUe.GetDlTeid()))
 }
 
@@ -397,6 +399,7 @@ func xnPduSessionResourceModifyConfirmProcessor(g *Gnb, conn net.Conn, imsi stri
 		dlTeid: xnUe.GetDlTeid(),
 		ueType: constant.UE_TYPE_XN,
 	})
+	g.markImsiReady(imsi)
 	g.XnLog.Debugf("Sent DL TEID %s to imsiTodlTeidAndUeType", hex.EncodeToString(xnUe.GetDlTeid()))
 }
 
