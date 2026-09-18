@@ -26,7 +26,7 @@ func NewTeidGenerator() *TeidGenerator {
 	}
 }
 
-func (t *TeidGenerator) AllocateTeid() []byte {
+func (t *TeidGenerator) AllocateTeid() ([]byte, error) {
 	t.mtx.Lock()
 	defer t.mtx.Unlock()
 
@@ -36,42 +36,46 @@ func (t *TeidGenerator) AllocateTeid() []byte {
 
 			teid, err := hex.DecodeString(t.formatAsString(int64(i)))
 			if err != nil {
-				panic(fmt.Errorf("error decode teid: %v", err))
+				return nil, fmt.Errorf("error decode teid: %v", err)
 			}
 
-			return []byte(teid)
+			return teid, nil
 		}
 	}
 
-	return []byte{}
+	return nil, fmt.Errorf("teid pool exhausted")
 }
 
-func (t *TeidGenerator) ReleaseTeid(teid []byte) {
+func (t *TeidGenerator) ReleaseTeid(teid []byte) error {
 	t.mtx.Lock()
 	defer t.mtx.Unlock()
 
 	if len(teid) == 0 {
-		return
+		return nil
 	}
-	value := t.deFormatFromString(hex.EncodeToString(teid))
 
-	if _, exists := t.teids.Load(value); exists {
-		t.teids.Delete(value)
-	} else {
-		panic(fmt.Errorf("attempting to release teid %s that is not allocated", hex.EncodeToString(teid)))
+	value, err := t.deFormatFromString(hex.EncodeToString(teid))
+	if err != nil {
+		return err
 	}
+
+	if _, exists := t.teids.Load(value); !exists {
+		return fmt.Errorf("attempting to release teid %s that is not allocated", hex.EncodeToString(teid))
+	}
+	t.teids.Delete(value)
+	return nil
 }
 
 func (t *TeidGenerator) formatAsString(teid int64) string {
 	return fmt.Sprintf("%08x", teid)
 }
 
-func (t *TeidGenerator) deFormatFromString(teid string) int64 {
+func (t *TeidGenerator) deFormatFromString(teid string) (int64, error) {
 	teidInt, err := strconv.ParseInt(teid, 16, 64)
 	if err != nil {
-		panic(fmt.Errorf("error deformat teid: %v", err))
+		return 0, fmt.Errorf("error deformat teid: %v", err)
 	}
-	return teidInt
+	return teidInt, nil
 }
 
 // get packet with GTP header from gtpChannel and forward to N3 connection

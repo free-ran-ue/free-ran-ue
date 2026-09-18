@@ -187,7 +187,12 @@ func xnPduSessionResourceSetupProcessor(g *Gnb, conn net.Conn, imsi string, msg 
 		}
 	}
 
-	xnUe := NewXnUe(imsi, g.teidGenerator.AllocateTeid(), nil)
+	dlTeid, err := g.teidGenerator.AllocateTeid()
+	if err != nil {
+		g.XnLog.Warnf("Error allocate dl teid: %v", err)
+		return
+	}
+	xnUe := NewXnUe(imsi, dlTeid, nil)
 	g.xnUeConns.Store(xnUe, struct{}{})
 	g.XnLog.Debugf("Allocated DLTEID for XnUe: %s", hex.EncodeToString(xnUe.GetDlTeid()))
 
@@ -288,7 +293,12 @@ func xnPduSessionResourceModifyIndicationProcessor(g *Gnb, conn net.Conn, imsi s
 	}
 	g.XnLog.Tracef("Get PDUSessionResourceModifyIndicationTransfer: %+v", pduSessionResourceModifyIndicationTransfer)
 
-	xnUe := NewXnUe(imsi, g.teidGenerator.AllocateTeid(), nil)
+	dlTeid, err := g.teidGenerator.AllocateTeid()
+	if err != nil {
+		g.XnLog.Warnf("Error allocate dl teid: %v", err)
+		return
+	}
+	xnUe := NewXnUe(imsi, dlTeid, nil)
 	g.xnUeConns.Store(xnUe, struct{}{})
 	g.XnLog.Debugf("Allocated DLTEID for XnUe: %s", hex.EncodeToString(xnUe.GetDlTeid()))
 
@@ -424,7 +434,9 @@ func xnReleaseUeProcessor(g *Gnb, conn net.Conn, imsi string) bool {
 	g.addressToUe.Delete(xnUe.GetDataPlaneAddress().String())
 	g.XnLog.Debugf("Deleted XN UE %s with data plane address %s from addressToUe", xnUe.GetIMSI(), xnUe.GetDataPlaneAddress().String())
 
-	xnUe.Release(g.teidGenerator)
+	if err := xnUe.Release(g.teidGenerator); err != nil {
+		g.XnLog.Warnf("Error releasing XN UE: %v", err)
+	}
 	g.XnLog.Debugf("Released XN UE %s with DL TEID %s", xnUe.GetIMSI(), hex.EncodeToString(xnUe.GetDlTeid()))
 
 	g.xnUeConns.Delete(xnUe)

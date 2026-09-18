@@ -22,18 +22,18 @@ func NewRanUeNgapIdGenerator() *RanUeNgapIdGenerator {
 	}
 }
 
-func (g *RanUeNgapIdGenerator) AllocateRanUeId() int64 {
+func (g *RanUeNgapIdGenerator) AllocateRanUeId() (int64, error) {
 	g.mtx.Lock()
 	defer g.mtx.Unlock()
 
 	for i := 1; i <= 65535; i++ {
 		if _, exists := g.usedRanUeIds.Load(int64(i)); !exists {
 			g.usedRanUeIds.Store(int64(i), true)
-			return int64(i)
+			return int64(i), nil
 		}
 	}
 
-	return -1
+	return 0, fmt.Errorf("ranUeId pool exhausted")
 }
 
 func (g *RanUeNgapIdGenerator) ReleaseRanUeId(ranUeId int64) {
@@ -63,10 +63,10 @@ type RanUe struct {
 	nrdcIndicatorMtx sync.Mutex
 }
 
-func NewRanUe(n1Conn net.Conn, ranUeNgapIdGenerator *RanUeNgapIdGenerator) *RanUe {
-	ranUeId := ranUeNgapIdGenerator.AllocateRanUeId()
-	if ranUeId == -1 {
-		panic("Failed to allocate ranUeId")
+func NewRanUe(n1Conn net.Conn, ranUeNgapIdGenerator *RanUeNgapIdGenerator) (*RanUe, error) {
+	ranUeId, err := ranUeNgapIdGenerator.AllocateRanUeId()
+	if err != nil {
+		return nil, err
 	}
 
 	return &RanUe{
@@ -83,15 +83,16 @@ func NewRanUe(n1Conn net.Conn, ranUeNgapIdGenerator *RanUeNgapIdGenerator) *RanU
 
 		nrdcIndicator:    false,
 		nrdcIndicatorMtx: sync.Mutex{},
-	}
+	}, nil
 }
 
-func (r *RanUe) Release(ranUeNgapIdGenerator *RanUeNgapIdGenerator, teidGenerator *TeidGenerator) {
+func (r *RanUe) Release(ranUeNgapIdGenerator *RanUeNgapIdGenerator, teidGenerator *TeidGenerator) error {
 	ranUeNgapIdGenerator.ReleaseRanUeId(r.ranUeNgapId)
-	teidGenerator.ReleaseTeid(r.dlTeid)
+	err := teidGenerator.ReleaseTeid(r.dlTeid)
 	close(r.pduSessionEstablishmentCompleteChan)
 	close(r.ueContextReleaseCompleteChan)
 	close(r.pduSessionModifyIndicationCompleteChan)
+	return err
 }
 
 func (r *RanUe) GetAmfUeId() int64 {

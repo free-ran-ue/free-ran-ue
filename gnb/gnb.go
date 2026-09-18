@@ -307,7 +307,14 @@ func (g *Gnb) Start(ctx context.Context) error {
 				continue
 			}
 			g.RanLog.Infof("New UE connection accepted from: %v", conn.RemoteAddr())
-			ranUe := NewRanUe(conn, g.ranUeNgapIdGenerator)
+			ranUe, err := NewRanUe(conn, g.ranUeNgapIdGenerator)
+			if err != nil {
+				g.RanLog.Errorf("Error creating RAN UE: %v", err)
+				if closeErr := conn.Close(); closeErr != nil {
+					g.RanLog.Errorf("Error closing UE connection: %v", closeErr)
+				}
+				continue
+			}
 			if g.staticNrdc {
 				ranUe.ActivateNrdc()
 			}
@@ -505,7 +512,11 @@ func (g *Gnb) setupN1(ranUe *RanUe) error {
 	}
 
 	// pdu session establishment
-	ranUe.SetDlTeid(g.teidGenerator.AllocateTeid())
+	dlTeid, err := g.teidGenerator.AllocateTeid()
+	if err != nil {
+		return fmt.Errorf("error allocate dl teid: %v", err)
+	}
+	ranUe.SetDlTeid(dlTeid)
 	if err := g.processUePduSessionEstablishment(ranUe); err != nil {
 		return err
 	}
@@ -607,7 +618,9 @@ func (g *Gnb) handleRanConnection(ctx context.Context, ranUe *RanUe) {
 			g.RanLog.Errorf("Error closing UE connection: %v", err)
 		}
 		g.RanLog.Infof("Closed UE connection from: %v", ranUe.GetN1Conn().RemoteAddr())
-		ranUe.Release(g.ranUeNgapIdGenerator, g.teidGenerator)
+		if err := ranUe.Release(g.ranUeNgapIdGenerator, g.teidGenerator); err != nil {
+			g.RanLog.Errorf("Error releasing RAN UE: %v", err)
+		}
 		g.ranUeConns.Delete(ranUe.GetRanUeId())
 	}()
 
