@@ -7,7 +7,10 @@
 <a href="https://hub.docker.com/r/alonza0314/free-ran-ue/tags"><img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/alonza0314/free-ran-ue" alt="Docker"></a>
 <a href="https://github.com/free-ran-ue/free-ran-ue/blob/main/LICENSE"><img src="https://img.shields.io/github/license/free-ran-ue/free-ran-ue?color=blue" alt="License"/></a>
 <a href="https://www.codefactor.io/repository/github/free-ran-ue/free-ran-ue"><img src="https://www.codefactor.io/repository/github/free-ran-ue/free-ran-ue/badge" alt="CodeFactor" /></a>
-<a href="https://goreportcard.com/badge/github.com/free-ran-ue/free-ran-ue"><img src="https://goreportcard.com/badge/github.com/free-ran-ue/free-ran-ue" alt="goReport"/></a>
+<a href="https://insights.linuxfoundation.org/project/free-ran-ue"><img src="https://insights.linuxfoundation.org/api/badge/health-score?project=free-ran-ue" alt="LFX Health Score"/></a>
+<a href="https://insights.linuxfoundation.org/project/free-ran-ue"><img src="https://insights.linuxfoundation.org/api/badge/contributors?project=free-ran-ue" alt="LFX Contributors"/></a>
+
+</br>
 <img src="https://img.shields.io/badge/control%20plane-functional-green" alt="OS Linux"/>  
 <img src="https://img.shields.io/badge/data%20plane-functional-green" alt="OS Linux"/>
 </p>
