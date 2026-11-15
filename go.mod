@@ -5,7 +5,7 @@ go 1.26.2
 require (
 	github.com/Alonza0314/logger-go/v2 v2.1.0
 	github.com/free-ran-ue/util v0.2.0
-	github.com/free5gc/nas v1.3.0
+	github.com/free5gc/nas v1.3.1
 	github.com/free5gc/ngap v1.2.0
 	github.com/free5gc/openapi v1.3.0
 	github.com/free5gc/sctp v1.2.0
