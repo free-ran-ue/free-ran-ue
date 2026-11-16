@@ -8,15 +8,15 @@ import (
 
 var testGetAmfAndGnbSctpN2AddrCases = []struct {
 	name      string
-	amfN2Ip   string
-	gnbN2Ip   string
+	amfN2Ips  []string
+	gnbN2Ips  []string
 	amfN2Port int
 	gnbN2Port int
 }{
 	{
 		name:      "testGetAmfAndGnbSctpN2Addr",
-		amfN2Ip:   "127.0.0.18",
-		gnbN2Ip:   "127.0.0.1",
+		amfN2Ips:  []string{"127.0.0.18", "127.0.0.19"},
+		gnbN2Ips:  []string{"127.0.0.1", "127.0.0.2"},
 		amfN2Port: 38412,
 		gnbN2Port: 38413,
 	},
@@ -25,10 +25,38 @@ var testGetAmfAndGnbSctpN2AddrCases = []struct {
 func TestGetAmfAndGnbSctpN2Addr(t *testing.T) {
 	for _, testCase := range testGetAmfAndGnbSctpN2AddrCases {
 		t.Run(testCase.name, func(t *testing.T) {
-			amfAddr, gnbAddr, err := getAmfAndGnbSctpN2Addr(testCase.amfN2Ip, testCase.gnbN2Ip, testCase.amfN2Port, testCase.gnbN2Port)
-			assert.Equal(t, nil, err)
-			assert.Equal(t, testCase.amfN2Ip, amfAddr.IPAddrs[0].String())
-			assert.Equal(t, testCase.gnbN2Ip, gnbAddr.IPAddrs[0].String())
+			amfAddr, gnbAddr, err := getAmfAndGnbSctpN2Addr(testCase.amfN2Ips, testCase.gnbN2Ips, testCase.amfN2Port, testCase.gnbN2Port)
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if amfAddr == nil || gnbAddr == nil {
+				t.Fatal("expected non-nil AMF and GNB addresses")
+			}
+
+			if len(amfAddr.IPAddrs) != len(testCase.amfN2Ips) {
+				t.Fatalf(
+					"AMF address count: got %d, want %d",
+					len(amfAddr.IPAddrs),
+					len(testCase.amfN2Ips),
+				)
+			}
+
+			if len(gnbAddr.IPAddrs) != len(testCase.gnbN2Ips) {
+				t.Fatalf(
+					"GNB address count: got %d, want %d",
+					len(gnbAddr.IPAddrs),
+					len(testCase.gnbN2Ips),
+				)
+			}
+
+			for i, expectedIP := range testCase.amfN2Ips {
+				assert.Equal(t, expectedIP, amfAddr.IPAddrs[i].String())
+			}
+			for i, expectedIP := range testCase.gnbN2Ips {
+				assert.Equal(t, expectedIP, gnbAddr.IPAddrs[i].String())
+			}
+
 			assert.Equal(t, testCase.amfN2Port, amfAddr.Port)
 			assert.Equal(t, testCase.gnbN2Port, gnbAddr.Port)
 		})
