@@ -20,6 +20,16 @@ type GnbInfo struct {
 
 	RanUeList []RanUeInfo `json:"ranUeList"`
 	XnUeList  []XnUeInfo  `json:"xnUeList"`
+
+	XnInterface XnInterfaceInfo `json:"xnInterface"`
+}
+
+type XnInterfaceInfo struct {
+	Enable     bool   `json:"enable"`
+	ListenIp   string `json:"listenIp"`
+	ListenPort int    `json:"listenPort"`
+	DialIp     string `json:"dialIp"`
+	DialPort   int    `json:"dialPort"`
 }
 
 type SnssaiIE struct {
@@ -44,4 +54,21 @@ type ConsoleGnbUeNrdcModifyRequest struct {
 
 type ConsoleGnbUeNrdcModifyResponse struct {
 	Message string `json:"message"`
+}
+
+type ConsoleGnbUeHandoverRequest struct {
+	Ip   string `json:"ip"`
+	Port int    `json:"port"`
+	Imsi string `json:"imsi"`
+
+	TargetIp   string `json:"targetIp"`
+	TargetPort int    `json:"targetPort"`
+}
+
+type ConsoleGnbUeHandoverResponse struct {
+	Message string `json:"message"`
+}
+
+type GnbUeHandoverRequest struct {
+	Imsi string `json:"imsi"`
 }

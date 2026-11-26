@@ -290,6 +290,108 @@ paths:
                     type: string
                     example: "failed to send request: Post \"http://10.0.1.2:40104/api/gnb/ue/nrdc\": dial tcp 10.0.1.2:40104: connect: connection refused"
 
+  /api/console/gnb/ue/handover:
+    post:
+      summary: Xn Handover UE
+      description: Hand over a single connection UE from the source gNB to its Xn peer gNB
+      tags:
+        - gNB
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - ip
+                - port
+                - imsi
+                - targetIp
+                - targetPort
+              properties:
+                ip:
+                  type: string
+                  description: Source gNB API IP
+                  example: "10.0.1.2"
+                port:
+                  type: integer
+                  description: Source gNB API port
+                  example: 40104
+                imsi:
+                  type: string
+                  example: "imsi-208930000000001"
+                targetIp:
+                  type: string
+                  description: Target gNB API IP, the target must be the Xn peer of the source gNB
+                  example: "10.0.1.3"
+                targetPort:
+                  type: integer
+                  description: Target gNB API port
+                  example: 40104
+      responses:
+        '200':
+          description: Handover successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "UE imsi-208930000000001 handover success"
+        '400':
+          description: Invalid request, UE in NRDC, or target gNB is not the Xn peer of the source gNB
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "UE imsi-208930000000001 is in NRDC, only single connection UE can be handed over"
+        '401':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "failed to validate JWT: token signature is invalid: signature is invalid"
+        '404':
+          description: UE not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "UE imsi-208930000000001 not found"
+        '409':
+          description: UE is already in a handover
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "UE imsi-208930000000001 handover failed: handover conflict: UE imsi-208930000000001 is in handover state preparing"
+        '500':
+          description: Handover failed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "UE imsi-208930000000001 handover failed: timed out waiting for Xn UE context release from target gNB"
+
 components:
   schemas:
     Snssai:
@@ -319,6 +421,25 @@ components:
           type: string
           example: "imsi-208930000000001"
 
+    XnInterface:
+      type: object
+      properties:
+        enable:
+          type: boolean
+          example: true
+        listenIp:
+          type: string
+          example: "10.0.1.2"
+        listenPort:
+          type: integer
+          example: 31415
+        dialIp:
+          type: string
+          example: "10.0.1.3"
+        dialPort:
+          type: integer
+          example: 31415
+
     GnbInfo:
       type: object
       properties:
@@ -341,6 +462,8 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/XnUe'
+        xnInterface:
+          $ref: '#/components/schemas/XnInterface'
 
     EmptyGnbInfo:
       type: object

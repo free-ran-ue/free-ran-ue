@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 
+	nasIe "github.com/free5gc/nas/ie"
 	"github.com/free5gc/ngap/aper"
 	"github.com/free5gc/ngap/ie"
 	"github.com/free5gc/ngap/message"
@@ -336,4 +337,258 @@ func buildPDUSessionResourceModifyIndication(amfUeNgapId, ranUeNgapId int64, pdu
 
 func getPDUSessionResourceModifyIndication(amfUeNgapId, ranUeNgapId int64, pduSessionId int64, pduSessionResourceModifyIndicationTransferMessage []byte) ([]byte, error) {
 	return buildPDUSessionResourceModifyIndication(amfUeNgapId, ranUeNgapId, pduSessionId, pduSessionResourceModifyIndicationTransferMessage).MarshalBinary()
+}
+
+func buildGtpTunnel(teid []byte, ipv4 string) *ie.UPTransportLayerInformation {
+	return &ie.UPTransportLayerInformation{
+		Choice: &ie.GTPTunnel{
+			GTPTEID: &ie.GTPTEID{
+				Value: aper.OctetString(teid),
+			},
+			TransportLayerAddress: &ie.TransportLayerAddress{
+				Value: ngapConvertIPAddressToNgap(ipv4),
+			},
+		},
+	}
+}
+
+func buildUeSecurityCapabilities(nasCapability *nasIe.UESecCapability) *ie.UESecurityCapabilities {
+	var nrEncryption, nrIntegrity byte
+	if nasCapability != nil {
+		if nasCapability.EA1_128_5G {
+			nrEncryption |= 0x80
+		}
+		if nasCapability.EA2_128_5G {
+			nrEncryption |= 0x40
+		}
+		if nasCapability.EA3_128_5G {
+			nrEncryption |= 0x20
+		}
+		if nasCapability.IA1_128_5G {
+			nrIntegrity |= 0x80
+		}
+		if nasCapability.IA2_128_5G {
+			nrIntegrity |= 0x40
+		}
+		if nasCapability.IA3_128_5G {
+			nrIntegrity |= 0x20
+		}
+	}
+
+	return &ie.UESecurityCapabilities{
+		NRencryptionAlgorithms: &ie.NRencryptionAlgorithms{
+			Value: aper.BitString{Bytes: []byte{nrEncryption, 0x00}, BitLength: 16},
+		},
+		NRintegrityProtectionAlgorithms: &ie.NRintegrityProtectionAlgorithms{
+			Value: aper.BitString{Bytes: []byte{nrIntegrity, 0x00}, BitLength: 16},
+		},
+		EUTRAencryptionAlgorithms: &ie.EUTRAencryptionAlgorithms{
+			Value: aper.BitString{Bytes: []byte{0x00, 0x00}, BitLength: 16},
+		},
+		EUTRAintegrityProtectionAlgorithms: &ie.EUTRAintegrityProtectionAlgorithms{
+			Value: aper.BitString{Bytes: []byte{0x00, 0x00}, BitLength: 16},
+		},
+	}
+}
+
+func buildXnHandoverRequest(amfUeNgapId, pduSessionId int64, plmnId ie.PLMNIdentity, snssai ie.SNSSAI, ueSecurityCapabilities *ie.UESecurityCapabilities, ulTeid []byte, upfN3Ip string, sourceToTargetContainer []byte) (*message.HandoverRequest, error) {
+	handoverRequestTransfer := ie.PDUSessionResourceSetupRequestTransfer{
+		ProtocolIEs: &ie.ProtocolIEContainerPDUSessionResourceSetupRequestTransferIEs{
+			List: []ie.PDUSessionResourceSetupRequestTransferIEs{
+				{
+					ULNGUUPTNLInformation: buildGtpTunnel(ulTeid, upfN3Ip),
+				},
+			},
+		},
+	}
+	encodedHandoverRequestTransfer, err := ie.MarshalBinary(&handoverRequestTransfer)
+	if err != nil {
+		return nil, fmt.Errorf("error marshal handover request transfer: %v", err)
+	}
+	transfer := aper.OctetString(encodedHandoverRequestTransfer)
+
+	return &message.HandoverRequest{
+		AMFUENGAPID: &ie.AMFUENGAPID{
+			Value: amfUeNgapId,
+		},
+		HandoverType: &ie.HandoverType{
+			Value: ie.HandoverTypePresentIntra5gs,
+		},
+		Cause: &ie.Cause{
+			Choice: &ie.CauseRadioNetwork{
+				Value: ie.CauseRadioNetworkPresentHandoverDesirableForRadioReason,
+			},
+		},
+		UEAggregateMaximumBitRate: &ie.UEAggregateMaximumBitRate{
+			UEAggregateMaximumBitRateDL: &ie.BitRate{Value: 1000000000},
+			UEAggregateMaximumBitRateUL: &ie.BitRate{Value: 1000000000},
+		},
+		UESecurityCapabilities: ueSecurityCapabilities,
+		SecurityContext: &ie.SecurityContext{
+			NextHopChainingCount: &ie.NextHopChainingCount{Value: 0},
+			NextHopNH: &ie.SecurityKey{
+				Value: aper.BitString{Bytes: make([]byte, 32), BitLength: 256},
+			},
+		},
+		AllowedNSSAI: &ie.AllowedNSSAI{
+			List: []ie.AllowedNSSAIItem{
+				{SNSSAI: &snssai},
+			},
+		},
+		GUAMI: &ie.GUAMI{
+			PLMNIdentity: &plmnId,
+			AMFRegionID:  &ie.AMFRegionID{Value: aper.BitString{Bytes: []byte{0x00}, BitLength: 8}},
+			AMFSetID:     &ie.AMFSetID{Value: aper.BitString{Bytes: []byte{0x00, 0x00}, BitLength: 10}},
+			AMFPointer:   &ie.AMFPointer{Value: aper.BitString{Bytes: []byte{0x00}, BitLength: 6}},
+		},
+		PDUSessionResourceSetupListHOReq: &ie.PDUSessionResourceSetupListHOReq{
+			List: []ie.PDUSessionResourceSetupItemHOReq{
+				{
+					PDUSessionID: &ie.PDUSessionID{
+						Value: pduSessionId,
+					},
+					SNSSAI:                  &snssai,
+					HandoverRequestTransfer: &transfer,
+				},
+			},
+		},
+		SourceToTargetTransparentContainer: &ie.SourceToTargetTransparentContainer{
+			Value: aper.OctetString(sourceToTargetContainer),
+		},
+	}, nil
+}
+
+func getXnHandoverRequest(amfUeNgapId, pduSessionId int64, plmnId ie.PLMNIdentity, snssai ie.SNSSAI, ueSecurityCapabilities *ie.UESecurityCapabilities, ulTeid []byte, upfN3Ip string, sourceToTargetContainer []byte) ([]byte, error) {
+	handoverRequest, err := buildXnHandoverRequest(amfUeNgapId, pduSessionId, plmnId, snssai, ueSecurityCapabilities, ulTeid, upfN3Ip, sourceToTargetContainer)
+	if err != nil {
+		return nil, err
+	}
+	return handoverRequest.MarshalBinary()
+}
+
+func buildXnHandoverRequestAcknowledge(amfUeNgapId, ranUeNgapId, pduSessionId int64, dlTeid []byte, ranN3Ip string, qosId int64, targetToSourceContainer []byte) (*message.HandoverRequestAcknowledge, error) {
+	handoverRequestAcknowledgeTransfer := ie.HandoverRequestAcknowledgeTransfer{
+		DLNGUUPTNLInformation: buildGtpTunnel(dlTeid, ranN3Ip),
+		QosFlowSetupResponseList: &ie.QosFlowListWithDataForwarding{
+			List: []ie.QosFlowItemWithDataForwarding{
+				{
+					QosFlowIdentifier: &ie.QosFlowIdentifier{
+						Value: qosId,
+					},
+				},
+			},
+		},
+	}
+	encodedTransfer, err := ie.MarshalBinary(&handoverRequestAcknowledgeTransfer)
+	if err != nil {
+		return nil, fmt.Errorf("error marshal handover request acknowledge transfer: %v", err)
+	}
+	transfer := aper.OctetString(encodedTransfer)
+
+	return &message.HandoverRequestAcknowledge{
+		AMFUENGAPID: &ie.AMFUENGAPID{
+			Value: amfUeNgapId,
+		},
+		RANUENGAPID: &ie.RANUENGAPID{
+			Value: ranUeNgapId,
+		},
+		PDUSessionResourceAdmittedList: &ie.PDUSessionResourceAdmittedList{
+			List: []ie.PDUSessionResourceAdmittedItem{
+				{
+					PDUSessionID: &ie.PDUSessionID{
+						Value: pduSessionId,
+					},
+					HandoverRequestAcknowledgeTransfer: &transfer,
+				},
+			},
+		},
+		TargetToSourceTransparentContainer: &ie.TargetToSourceTransparentContainer{
+			Value: aper.OctetString(targetToSourceContainer),
+		},
+	}, nil
+}
+
+func getXnHandoverRequestAcknowledge(amfUeNgapId, ranUeNgapId, pduSessionId int64, dlTeid []byte, ranN3Ip string, qosId int64, targetToSourceContainer []byte) ([]byte, error) {
+	handoverRequestAcknowledge, err := buildXnHandoverRequestAcknowledge(amfUeNgapId, ranUeNgapId, pduSessionId, dlTeid, ranN3Ip, qosId, targetToSourceContainer)
+	if err != nil {
+		return nil, err
+	}
+	return handoverRequestAcknowledge.MarshalBinary()
+}
+
+func buildPathSwitchRequestTransfer(dlTeid []byte, ranN3Ip string, qosId int64) ie.PathSwitchRequestTransfer {
+	return ie.PathSwitchRequestTransfer{
+		DLNGUUPTNLInformation: buildGtpTunnel(dlTeid, ranN3Ip),
+		QosFlowAcceptedList: &ie.QosFlowAcceptedList{
+			List: []ie.QosFlowAcceptedItem{
+				{
+					QosFlowIdentifier: &ie.QosFlowIdentifier{
+						Value: qosId,
+					},
+				},
+			},
+		},
+	}
+}
+
+func getPathSwitchRequestTransfer(dlTeid []byte, ranN3Ip string, qosId int64) ([]byte, error) {
+	transferMessage := buildPathSwitchRequestTransfer(dlTeid, ranN3Ip, qosId)
+	encodedTransferMessage, err := ie.MarshalBinary(&transferMessage)
+	if err != nil {
+		return nil, fmt.Errorf("error marshal path switch request transfer message: %v", err)
+	}
+	return encodedTransferMessage, nil
+}
+
+func buildPathSwitchRequest(ranUeNgapId, sourceAmfUeNgapId, pduSessionId int64, plmnId ie.PLMNIdentity, tai ie.TAI, gnbId []byte, ueSecurityCapabilities *ie.UESecurityCapabilities, pathSwitchRequestTransferMessage []byte) *message.PathSwitchRequest {
+	transfer := aper.OctetString(pathSwitchRequestTransferMessage)
+
+	return &message.PathSwitchRequest{
+		RANUENGAPID: &ie.RANUENGAPID{
+			Value: ranUeNgapId,
+		},
+		SourceAMFUENGAPID: &ie.AMFUENGAPID{
+			Value: sourceAmfUeNgapId,
+		},
+		UserLocationInformation: buildUserLocationInformationNR(plmnId, tai, gnbId),
+		UESecurityCapabilities:  ueSecurityCapabilities,
+		PDUSessionResourceToBeSwitchedDLList: &ie.PDUSessionResourceToBeSwitchedDLList{
+			List: []ie.PDUSessionResourceToBeSwitchedDLItem{
+				{
+					PDUSessionID: &ie.PDUSessionID{
+						Value: pduSessionId,
+					},
+					PathSwitchRequestTransfer: &transfer,
+				},
+			},
+		},
+	}
+}
+
+func getPathSwitchRequest(ranUeNgapId, sourceAmfUeNgapId, pduSessionId int64, plmnId ie.PLMNIdentity, tai ie.TAI, gnbId []byte, ueSecurityCapabilities *ie.UESecurityCapabilities, pathSwitchRequestTransferMessage []byte) ([]byte, error) {
+	return buildPathSwitchRequest(ranUeNgapId, sourceAmfUeNgapId, pduSessionId, plmnId, tai, gnbId, ueSecurityCapabilities, pathSwitchRequestTransferMessage).MarshalBinary()
+}
+
+func buildXnUeContextRelease(amfUeNgapId, ranUeNgapId int64, cause aper.Enumerated) *message.UEContextReleaseCommand {
+	return &message.UEContextReleaseCommand{
+		UENGAPIDs: &ie.UENGAPIDs{
+			Choice: &ie.UENGAPIDPair{
+				AMFUENGAPID: &ie.AMFUENGAPID{
+					Value: amfUeNgapId,
+				},
+				RANUENGAPID: &ie.RANUENGAPID{
+					Value: ranUeNgapId,
+				},
+			},
+		},
+		Cause: &ie.Cause{
+			Choice: &ie.CauseRadioNetwork{
+				Value: cause,
+			},
+		},
+	}
+}
+
+func getXnUeContextRelease(amfUeNgapId, ranUeNgapId int64, cause aper.Enumerated) ([]byte, error) {
+	return buildXnUeContextRelease(amfUeNgapId, ranUeNgapId, cause).MarshalBinary()
 }
