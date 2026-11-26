@@ -8,6 +8,7 @@ import (
 
 	"github.com/free-ran-ue/free-ran-ue/v2/constant"
 	"github.com/free5gc/nas/ie"
+	ngapIe "github.com/free5gc/ngap/ie"
 )
 
 type RanUeNgapIdGenerator struct {
@@ -43,6 +44,30 @@ func (g *RanUeNgapIdGenerator) ReleaseRanUeId(ranUeId int64) {
 	g.usedRanUeIds.Delete(ranUeId)
 }
 
+type HandoverState int
+
+const (
+	HandoverStateNone HandoverState = iota
+	HandoverStatePreparing
+	HandoverStateHandedOut
+	HandoverStateIncoming
+)
+
+func (s HandoverState) String() string {
+	switch s {
+	case HandoverStateNone:
+		return "none"
+	case HandoverStatePreparing:
+		return "preparing"
+	case HandoverStateHandedOut:
+		return "handed out"
+	case HandoverStateIncoming:
+		return "incoming"
+	default:
+		return "unknown"
+	}
+}
+
 type RanUe struct {
 	amfUeNgapId int64
 	ranUeNgapId int64
@@ -61,6 +86,16 @@ type RanUe struct {
 
 	nrdcIndicator    bool
 	nrdcIndicatorMtx sync.Mutex
+
+	ueSecurityCapabilities *ngapIe.UESecurityCapabilities
+
+	handoverState    HandoverState
+	handoverStateMtx sync.Mutex
+
+	pathSwitchResultChan chan error
+	handoverReleaseChan  chan error
+
+	releaseOnce sync.Once
 }
 
 func NewRanUe(n1Conn net.Conn, ranUeNgapIdGenerator *RanUeNgapIdGenerator) (*RanUe, error) {
@@ -83,12 +118,23 @@ func NewRanUe(n1Conn net.Conn, ranUeNgapIdGenerator *RanUeNgapIdGenerator) (*Ran
 
 		nrdcIndicator:    false,
 		nrdcIndicatorMtx: sync.Mutex{},
+
+		handoverState: HandoverStateNone,
+
+		pathSwitchResultChan: make(chan error, 1),
+		handoverReleaseChan:  make(chan error, 1),
 	}, nil
 }
 
 func (r *RanUe) Release(ranUeNgapIdGenerator *RanUeNgapIdGenerator, teidGenerator *TeidGenerator) error {
-	ranUeNgapIdGenerator.ReleaseRanUeId(r.ranUeNgapId)
-	return teidGenerator.ReleaseTeid(r.dlTeid)
+	var err error
+	r.releaseOnce.Do(func() {
+		ranUeNgapIdGenerator.ReleaseRanUeId(r.ranUeNgapId)
+		if r.dlTeid != nil {
+			err = teidGenerator.ReleaseTeid(r.dlTeid)
+		}
+	})
+	return err
 }
 
 func (r *RanUe) GetAmfUeId() int64 {
@@ -164,6 +210,52 @@ func (r *RanUe) GetUeContextReleaseCompleteChan() chan struct{} {
 
 func (r *RanUe) GetPduSessionModifyIndicationCompleteChan() chan struct{} {
 	return r.pduSessionModifyIndicationCompleteChan
+}
+
+func (r *RanUe) SetN1Conn(n1Conn net.Conn) {
+	r.n1Conn = n1Conn
+}
+
+func (r *RanUe) GetMobileIdentity5GS() *ie.MobileId5GS {
+	return r.mobileIdentity5GS
+}
+
+func (r *RanUe) GetUeSecurityCapabilities() *ngapIe.UESecurityCapabilities {
+	return r.ueSecurityCapabilities
+}
+
+func (r *RanUe) SetUeSecurityCapabilities(ueSecurityCapabilities *ngapIe.UESecurityCapabilities) {
+	r.ueSecurityCapabilities = ueSecurityCapabilities
+}
+
+func (r *RanUe) GetPathSwitchResultChan() chan error {
+	return r.pathSwitchResultChan
+}
+
+func (r *RanUe) GetHandoverReleaseChan() chan error {
+	return r.handoverReleaseChan
+}
+
+func (r *RanUe) GetHandoverState() HandoverState {
+	r.handoverStateMtx.Lock()
+	defer r.handoverStateMtx.Unlock()
+	return r.handoverState
+}
+
+func (r *RanUe) SetHandoverState(state HandoverState) {
+	r.handoverStateMtx.Lock()
+	defer r.handoverStateMtx.Unlock()
+	r.handoverState = state
+}
+
+func (r *RanUe) CompareAndSetHandoverState(from, to HandoverState) bool {
+	r.handoverStateMtx.Lock()
+	defer r.handoverStateMtx.Unlock()
+	if r.handoverState != from {
+		return false
+	}
+	r.handoverState = to
+	return true
 }
 
 func (r *RanUe) IsNrdcActivated() bool {

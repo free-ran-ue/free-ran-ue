@@ -147,6 +147,95 @@ export interface ApiConsoleGnbInfoPostRequest {
 /**
  * 
  * @export
+ * @interface ApiConsoleGnbUeHandoverPost200Response
+ */
+export interface ApiConsoleGnbUeHandoverPost200Response {
+    /**
+     * 
+     * @type {string}
+     * @memberof ApiConsoleGnbUeHandoverPost200Response
+     */
+    'message'?: string;
+}
+/**
+ * 
+ * @export
+ * @interface ApiConsoleGnbUeHandoverPost400Response
+ */
+export interface ApiConsoleGnbUeHandoverPost400Response {
+    /**
+     * 
+     * @type {string}
+     * @memberof ApiConsoleGnbUeHandoverPost400Response
+     */
+    'message'?: string;
+}
+/**
+ * 
+ * @export
+ * @interface ApiConsoleGnbUeHandoverPost409Response
+ */
+export interface ApiConsoleGnbUeHandoverPost409Response {
+    /**
+     * 
+     * @type {string}
+     * @memberof ApiConsoleGnbUeHandoverPost409Response
+     */
+    'message'?: string;
+}
+/**
+ * 
+ * @export
+ * @interface ApiConsoleGnbUeHandoverPost500Response
+ */
+export interface ApiConsoleGnbUeHandoverPost500Response {
+    /**
+     * 
+     * @type {string}
+     * @memberof ApiConsoleGnbUeHandoverPost500Response
+     */
+    'message'?: string;
+}
+/**
+ * 
+ * @export
+ * @interface ApiConsoleGnbUeHandoverPostRequest
+ */
+export interface ApiConsoleGnbUeHandoverPostRequest {
+    /**
+     * Source gNB API IP
+     * @type {string}
+     * @memberof ApiConsoleGnbUeHandoverPostRequest
+     */
+    'ip': string;
+    /**
+     * Source gNB API port
+     * @type {number}
+     * @memberof ApiConsoleGnbUeHandoverPostRequest
+     */
+    'port': number;
+    /**
+     * 
+     * @type {string}
+     * @memberof ApiConsoleGnbUeHandoverPostRequest
+     */
+    'imsi': string;
+    /**
+     * Target gNB API IP, the target must be the Xn peer of the source gNB
+     * @type {string}
+     * @memberof ApiConsoleGnbUeHandoverPostRequest
+     */
+    'targetIp': string;
+    /**
+     * Target gNB API port
+     * @type {number}
+     * @memberof ApiConsoleGnbUeHandoverPostRequest
+     */
+    'targetPort': number;
+}
+/**
+ * 
+ * @export
  * @interface ApiConsoleGnbUeNrdcPost200Response
  */
 export interface ApiConsoleGnbUeNrdcPost200Response {
@@ -446,6 +535,12 @@ export interface GnbInfo {
      * @memberof GnbInfo
      */
     'xnUeList'?: Array<XnUe>;
+    /**
+     * 
+     * @type {XnInterface}
+     * @memberof GnbInfo
+     */
+    'xnInterface'?: XnInterface;
 }
 /**
  * 
@@ -484,6 +579,43 @@ export interface Snssai {
      * @memberof Snssai
      */
     'sd'?: string;
+}
+/**
+ * 
+ * @export
+ * @interface XnInterface
+ */
+export interface XnInterface {
+    /**
+     * 
+     * @type {boolean}
+     * @memberof XnInterface
+     */
+    'enable'?: boolean;
+    /**
+     * 
+     * @type {string}
+     * @memberof XnInterface
+     */
+    'listenIp'?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof XnInterface
+     */
+    'listenPort'?: number;
+    /**
+     * 
+     * @type {string}
+     * @memberof XnInterface
+     */
+    'dialIp'?: string;
+    /**
+     * 
+     * @type {number}
+     * @memberof XnInterface
+     */
+    'dialPort'?: number;
 }
 /**
  * 
@@ -792,6 +924,46 @@ export const GNBApiAxiosParamCreator = function (configuration?: Configuration) 
             };
         },
         /**
+         * Hand over a single connection UE from the source gNB to its Xn peer gNB
+         * @summary Xn Handover UE
+         * @param {ApiConsoleGnbUeHandoverPostRequest} apiConsoleGnbUeHandoverPostRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiConsoleGnbUeHandoverPost: async (apiConsoleGnbUeHandoverPostRequest: ApiConsoleGnbUeHandoverPostRequest, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'apiConsoleGnbUeHandoverPostRequest' is not null or undefined
+            assertParamExists('apiConsoleGnbUeHandoverPost', 'apiConsoleGnbUeHandoverPostRequest', apiConsoleGnbUeHandoverPostRequest)
+            const localVarPath = `/api/console/gnb/ue/handover`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            // authentication BearerAuth required
+            // http bearer authentication required
+            await setBearerAuthToObject(localVarHeaderParameter, configuration)
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(apiConsoleGnbUeHandoverPostRequest, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
          * Modify the NRDC status of a specific UE
          * @summary Modify UE NRDC Status
          * @param {ApiConsoleGnbUeNrdcPostRequest} apiConsoleGnbUeNrdcPostRequest 
@@ -855,6 +1027,19 @@ export const GNBApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
+         * Hand over a single connection UE from the source gNB to its Xn peer gNB
+         * @summary Xn Handover UE
+         * @param {ApiConsoleGnbUeHandoverPostRequest} apiConsoleGnbUeHandoverPostRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async apiConsoleGnbUeHandoverPost(apiConsoleGnbUeHandoverPostRequest: ApiConsoleGnbUeHandoverPostRequest, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ApiConsoleGnbUeHandoverPost200Response>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.apiConsoleGnbUeHandoverPost(apiConsoleGnbUeHandoverPostRequest, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['GNBApi.apiConsoleGnbUeHandoverPost']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
          * Modify the NRDC status of a specific UE
          * @summary Modify UE NRDC Status
          * @param {ApiConsoleGnbUeNrdcPostRequest} apiConsoleGnbUeNrdcPostRequest 
@@ -888,6 +1073,16 @@ export const GNBApiFactory = function (configuration?: Configuration, basePath?:
             return localVarFp.apiConsoleGnbInfoPost(apiConsoleGnbInfoPostRequest, options).then((request) => request(axios, basePath));
         },
         /**
+         * Hand over a single connection UE from the source gNB to its Xn peer gNB
+         * @summary Xn Handover UE
+         * @param {ApiConsoleGnbUeHandoverPostRequest} apiConsoleGnbUeHandoverPostRequest 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        apiConsoleGnbUeHandoverPost(apiConsoleGnbUeHandoverPostRequest: ApiConsoleGnbUeHandoverPostRequest, options?: RawAxiosRequestConfig): AxiosPromise<ApiConsoleGnbUeHandoverPost200Response> {
+            return localVarFp.apiConsoleGnbUeHandoverPost(apiConsoleGnbUeHandoverPostRequest, options).then((request) => request(axios, basePath));
+        },
+        /**
          * Modify the NRDC status of a specific UE
          * @summary Modify UE NRDC Status
          * @param {ApiConsoleGnbUeNrdcPostRequest} apiConsoleGnbUeNrdcPostRequest 
@@ -917,6 +1112,18 @@ export class GNBApi extends BaseAPI {
      */
     public apiConsoleGnbInfoPost(apiConsoleGnbInfoPostRequest: ApiConsoleGnbInfoPostRequest, options?: RawAxiosRequestConfig) {
         return GNBApiFp(this.configuration).apiConsoleGnbInfoPost(apiConsoleGnbInfoPostRequest, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * Hand over a single connection UE from the source gNB to its Xn peer gNB
+     * @summary Xn Handover UE
+     * @param {ApiConsoleGnbUeHandoverPostRequest} apiConsoleGnbUeHandoverPostRequest 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof GNBApi
+     */
+    public apiConsoleGnbUeHandoverPost(apiConsoleGnbUeHandoverPostRequest: ApiConsoleGnbUeHandoverPostRequest, options?: RawAxiosRequestConfig) {
+        return GNBApiFp(this.configuration).apiConsoleGnbUeHandoverPost(apiConsoleGnbUeHandoverPostRequest, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**

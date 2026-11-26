@@ -11,6 +11,7 @@ Name | Type | Description | Notes
 **snssai** | [**Snssai**](Snssai.md) |  | [optional] [default to undefined]
 **ranUeList** | [**Array&lt;RanUe&gt;**](RanUe.md) |  | [optional] [default to undefined]
 **xnUeList** | [**Array&lt;XnUe&gt;**](XnUe.md) |  | [optional] [default to undefined]
+**xnInterface** | [**XnInterface**](XnInterface.md) |  | [optional] [default to undefined]
 
 ## Example
 
@@ -24,6 +25,7 @@ const instance: GnbInfo = {
     snssai,
     ranUeList,
     xnUeList,
+    xnInterface,
 };
 ```
 

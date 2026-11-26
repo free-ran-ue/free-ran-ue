@@ -3,11 +3,13 @@ package ue
 import (
 	"context"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -74,6 +76,7 @@ type Ue struct {
 	ranControlPlaneConn net.Conn
 	ranDataPlaneConn    net.Conn
 	dcRanDataPlaneConn  net.Conn
+	ranConnMtx          sync.RWMutex
 
 	mcc  string
 	mnc  string
@@ -262,7 +265,7 @@ func (u *Ue) Stop() {
 		u.UeLog.Errorf("Error cleaning up tunnel device: %v", err)
 	}
 
-	if err := u.ranDataPlaneConn.Close(); err != nil {
+	if err := u.getRanDataPlaneConn().Close(); err != nil {
 		u.UeLog.Errorf("Error closing RAN connection: %v", err)
 	}
 
@@ -272,7 +275,7 @@ func (u *Ue) Stop() {
 		}
 	}
 
-	if err := u.ranControlPlaneConn.Close(); err != nil {
+	if err := u.getRanControlPlaneConn().Close(); err != nil {
 		u.UeLog.Errorf("Error closing RAN connection: %v", err)
 	}
 
@@ -538,7 +541,7 @@ func (u *Ue) processUeDeregistration() error {
 	}
 	u.NasLog.Tracef("Encoded UE deregistration request: %+v", encodedDeregistrationRequest)
 
-	n, err := u.ranControlPlaneConn.Write(encodedDeregistrationRequest)
+	n, err := u.getRanControlPlaneConn().Write(encodedDeregistrationRequest)
 	if err != nil {
 		return fmt.Errorf("error send ue deregistration request: %+v", err)
 	}
@@ -612,7 +615,7 @@ func (u *Ue) waitForRanMessage(ctx context.Context, wg *sync.WaitGroup) {
 	go func() {
 		select {
 		case <-ctx.Done():
-			if err := u.ranControlPlaneConn.SetReadDeadline(time.Now()); err != nil {
+			if err := u.getRanControlPlaneConn().SetReadDeadline(time.Now()); err != nil {
 				u.RanLog.Errorf("Error set read deadline: %+v", err)
 			}
 		case <-stopWatch:
@@ -621,24 +624,36 @@ func (u *Ue) waitForRanMessage(ctx context.Context, wg *sync.WaitGroup) {
 
 	buffer := make([]byte, 1024)
 	for {
-		n, err := u.ranControlPlaneConn.Read(buffer)
+		conn := u.getRanControlPlaneConn()
+		n, err := conn.Read(buffer)
 		if err != nil {
-			if ctx.Err() != nil || errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
+			if ctx.Err() != nil {
+				break
+			}
+			if conn != u.getRanControlPlaneConn() {
+				continue
+			}
+			if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
 				break
 			}
 			u.RanLog.Warnf("Error read from ran control plane: %+v", err)
 			continue
 		}
 
-		switch string(buffer[:n]) {
-		case constant.UE_TUNNEL_UPDATE:
+		ranMessage := string(buffer[:n])
+		switch {
+		case ranMessage == constant.UE_TUNNEL_UPDATE:
 			go u.updateDataPlane()
+		case strings.HasPrefix(ranMessage, constant.UE_HANDOVER_COMMAND):
+			if err := u.handleHandoverCommand(strings.TrimSpace(strings.TrimPrefix(ranMessage, constant.UE_HANDOVER_COMMAND))); err != nil {
+				u.RanLog.Errorf("Error handle handover command: %+v", err)
+			}
 		default:
 			u.RanLog.Warnf("Received unknown message from RAN: %+v", buffer[:n])
 		}
 	}
 
-	if err := u.ranControlPlaneConn.SetReadDeadline(time.Time{}); err != nil {
+	if err := u.getRanControlPlaneConn().SetReadDeadline(time.Time{}); err != nil {
 		u.RanLog.Errorf("Error set read deadline: %+v", err)
 	}
 	u.RanLog.Infoln("Stop waiting for RAN message")
@@ -684,24 +699,7 @@ func (u *Ue) setupTunnelDevice() error {
 
 	// go routing for read data from RAN
 	u.readFromRan = make(chan []byte, 2)
-	go func() {
-		buffer := make([]byte, 4096)
-		for {
-			n, err := u.ranDataPlaneConn.Read(buffer)
-			if err != nil {
-				if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
-					u.TunLog.Debugln("RAN data plane connection closed")
-					return
-				}
-				u.RanLog.Errorf("Error read from ran data plane: %+v", err)
-				return
-			}
-
-			tmp := make([]byte, n)
-			copy(tmp, buffer[:n])
-			u.readFromRan <- tmp
-		}
-	}()
+	go u.readFromRanDataPlane(u.getRanDataPlaneConn())
 	u.TunLog.Debugln("Read from RAN started")
 
 	if u.isNrdcEnabled() {
@@ -727,6 +725,25 @@ func (u *Ue) setupTunnelDevice() error {
 
 	u.TunLog.Infof("UE tunnel device setup as %s", u.ueTunnelDeviceName)
 	return nil
+}
+
+func (u *Ue) readFromRanDataPlane(conn net.Conn) {
+	buffer := make([]byte, 4096)
+	for {
+		n, err := conn.Read(buffer)
+		if err != nil {
+			if errors.Is(err, net.ErrClosed) || errors.Is(err, io.EOF) {
+				u.TunLog.Debugln("RAN data plane connection closed")
+				return
+			}
+			u.RanLog.Errorf("Error read from ran data plane: %+v", err)
+			return
+		}
+
+		tmp := make([]byte, n)
+		copy(tmp, buffer[:n])
+		u.readFromRan <- tmp
+	}
 }
 
 func (u *Ue) cleanUpTunnelDevice() error {
@@ -759,9 +776,10 @@ func (u *Ue) handleDataPlane(ctx context.Context, wg *sync.WaitGroup) {
 			goto HANDLE_DATA_PLANE_FINISH
 		case buffer := <-u.readFromTun:
 			if !u.isNrdcEnabled() {
-				n, err := u.ranDataPlaneConn.Write(buffer)
+				conn := u.getRanDataPlaneConn()
+				n, err := conn.Write(buffer)
 				if err != nil {
-					if errors.Is(err, net.ErrClosed) {
+					if errors.Is(err, net.ErrClosed) && conn == u.getRanDataPlaneConn() {
 						goto HANDLE_DATA_PLANE_FINISH
 					}
 					u.RanLog.Warnf("Error sent to ran data plane: %+v", err)
@@ -778,7 +796,7 @@ func (u *Ue) handleDataPlane(ctx context.Context, wg *sync.WaitGroup) {
 					}
 					u.RanLog.Tracef("Sent %d bytes of data to DC RAN: %+v", n, buffer[:n])
 				} else {
-					n, err := u.ranDataPlaneConn.Write(buffer)
+					n, err := u.getRanDataPlaneConn().Write(buffer)
 					if err != nil {
 						if errors.Is(err, net.ErrClosed) {
 							goto HANDLE_DATA_PLANE_FINISH
@@ -854,6 +872,18 @@ func (u *Ue) updateDataPlane() {
 }
 
 func (u *Ue) GetRanDataPlaneConn() net.Conn {
+	return u.getRanDataPlaneConn()
+}
+
+func (u *Ue) getRanControlPlaneConn() net.Conn {
+	u.ranConnMtx.RLock()
+	defer u.ranConnMtx.RUnlock()
+	return u.ranControlPlaneConn
+}
+
+func (u *Ue) getRanDataPlaneConn() net.Conn {
+	u.ranConnMtx.RLock()
+	defer u.ranConnMtx.RUnlock()
 	return u.ranDataPlaneConn
 }
 
@@ -875,4 +905,65 @@ func (u *Ue) isNrdcEnabled() bool {
 	defer u.rwLock.RUnlock()
 
 	return u.nrdc.enable
+}
+
+func (u *Ue) handleHandoverCommand(payload string) error {
+	u.RanLog.Infoln("Received handover command")
+
+	if u.isNrdcEnabled() {
+		return fmt.Errorf("handover is only supported for single connection, ignore handover command while NRDC is enabled")
+	}
+
+	var command model.HandoverCommand
+	if err := json.Unmarshal([]byte(payload), &command); err != nil {
+		return fmt.Errorf("error unmarshal handover command: %+v", err)
+	}
+	if command.RanControlPlaneIp == "" || command.RanDataPlaneIp == "" || command.RanControlPlanePort == 0 || command.RanDataPlanePort == 0 {
+		return fmt.Errorf("incomplete handover command: %+v", command)
+	}
+	u.RanLog.Debugf("Handover target control plane %s:%d, data plane %s:%d",
+		command.RanControlPlaneIp, command.RanControlPlanePort, command.RanDataPlaneIp, command.RanDataPlanePort)
+
+	controlPlaneConn, err := util.TcpDialWithOptionalLocalAddress(command.RanControlPlaneIp, command.RanControlPlanePort, "")
+	if err != nil {
+		return fmt.Errorf("error connect to target ran control plane: %+v", err)
+	}
+	if _, err := controlPlaneConn.Write([]byte(constant.UE_HANDOVER_COMPLETE + " " + constant.UE_IMSI_PREFIX + u.supi)); err != nil {
+		_ = controlPlaneConn.Close()
+		return fmt.Errorf("error send handover complete: %+v", err)
+	}
+	u.RanLog.Debugln("Sent handover complete to target RAN control plane")
+
+	dataPlaneConn, err := util.UdpDialWithOptionalLocalAddress(command.RanDataPlaneIp, command.RanDataPlanePort, "")
+	if err != nil {
+		_ = controlPlaneConn.Close()
+		return fmt.Errorf("error connect to target ran data plane: %+v", err)
+	}
+	if _, err := dataPlaneConn.Write([]byte(constant.UE_DATA_PLANE_INITIAL_PACKET + " " + constant.UE_IMSI_PREFIX + u.supi)); err != nil {
+		_ = dataPlaneConn.Close()
+		_ = controlPlaneConn.Close()
+		return fmt.Errorf("error send initial packet to target ran data plane: %+v", err)
+	}
+	u.RanLog.Debugln("Sent initial packet to target RAN data plane")
+
+	u.ranConnMtx.Lock()
+	oldControlPlaneConn, oldDataPlaneConn := u.ranControlPlaneConn, u.ranDataPlaneConn
+	u.ranControlPlaneConn, u.ranDataPlaneConn = controlPlaneConn, dataPlaneConn
+	u.ranControlPlaneIp, u.ranControlPlanePort = command.RanControlPlaneIp, command.RanControlPlanePort
+	u.ranDataPlaneIp, u.ranDataPlanePort = command.RanDataPlaneIp, command.RanDataPlanePort
+	u.ranConnMtx.Unlock()
+
+	if !u.ignoreSetupTunnel {
+		go u.readFromRanDataPlane(dataPlaneConn)
+	}
+
+	if err := oldDataPlaneConn.Close(); err != nil {
+		u.RanLog.Warnf("Error closing source RAN data plane connection: %+v", err)
+	}
+	if err := oldControlPlaneConn.Close(); err != nil {
+		u.RanLog.Warnf("Error closing source RAN control plane connection: %+v", err)
+	}
+
+	u.RanLog.Infof("Handover to RAN %s:%d completed", command.RanControlPlaneIp, command.RanControlPlanePort)
+	return nil
 }

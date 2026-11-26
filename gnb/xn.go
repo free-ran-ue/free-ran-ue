@@ -140,6 +140,12 @@ func xnInterfaceProcessor(conn net.Conn, g *Gnb) {
 	case *message.PDUSessionResourceModifyConfirm:
 		g.XnLog.Infoln("Processing NGAP PDU Session Resource Modify Confirm")
 		xnPduSessionResourceModifyConfirmProcessor(g, conn, xnPdu.Imsi, msg)
+	case *message.HandoverRequest:
+		g.XnLog.Infoln("Processing Xn Handover Request")
+		xnHandoverRequestProcessor(g, conn, xnPdu.Imsi, msg)
+	case *message.UEContextReleaseCommand:
+		g.XnLog.Infoln("Processing Xn UE Context Release")
+		xnUeContextReleaseProcessor(g, conn, xnPdu.Imsi, msg)
 	default:
 		g.XnLog.Warnf("Unknown NGAP PDU message: %T", ngapMsg)
 	}

@@ -8,7 +8,7 @@ interface GnbConnection {
   port: number
 }
 
-interface GnbWithConnection extends ApiConsoleGnbInfoPost200Response {
+export interface GnbWithConnection extends ApiConsoleGnbInfoPost200Response {
   connection?: GnbConnection
   status: 'online' | 'offline'
 }

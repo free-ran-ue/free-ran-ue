@@ -28,3 +28,16 @@
 .secondary:hover {
   background-color: #cbd5e1;
 }
+
+.button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.primary:disabled:hover {
+  background-color: #1e3a8a;
+}
+
+.secondary:disabled:hover {
+  background-color: #e2e8f0;
+}

@@ -1,6 +1,9 @@
 package constant
 
-import "net/http"
+import (
+	"net/http"
+	"time"
+)
 
 type UeType string
 
@@ -28,6 +31,14 @@ const (
 	UE_DATA_PLANE_INITIAL_PACKET = "initial packet"
 	UE_TUNNEL_UPDATE             = "tunnel update"
 	UE_IMSI_PREFIX               = "imsi-"
+
+	UE_HANDOVER_COMMAND  = "handover command"
+	UE_HANDOVER_COMPLETE = "handover complete"
+)
+
+// for handover
+const (
+	HANDOVER_TIMEOUT = 10 * time.Second
 )
 
 // for logger
@@ -87,6 +98,9 @@ const (
 
 	API_GNB_UE_NRDC        = "/ue/nrdc"
 	API_GNB_UE_NRDC_METHOD = http.MethodPost
+
+	API_GNB_UE_HANDOVER        = "/ue/handover"
+	API_GNB_UE_HANDOVER_METHOD = http.MethodPost
 )
 
 // for console
@@ -98,4 +112,7 @@ const (
 
 	API_REQUEST_GNB_UE_NRDC        = API_PREFIX_GNB + API_GNB_UE_NRDC
 	API_REQUEST_GNB_UE_NRDC_METHOD = API_GNB_UE_NRDC_METHOD
+
+	API_REQUEST_GNB_UE_HANDOVER        = API_PREFIX_GNB + API_GNB_UE_HANDOVER
+	API_REQUEST_GNB_UE_HANDOVER_METHOD = API_GNB_UE_HANDOVER_METHOD
 )

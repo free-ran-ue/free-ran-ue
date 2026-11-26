@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -88,6 +89,8 @@ type Gnb struct {
 	addressToUe           sync.Map // UDP address -> *(Ran/Xn)Ue
 	imsiTodlTeidAndUeType sync.Map // imsi -> dlTeidAndUeType
 	imsiReadyChans        sync.Map // imsi -> chan struct{}
+	pendingHandoverUes    sync.Map // imsi -> *RanUe
+	handoverOutUes        sync.Map // imsi -> *RanUe
 
 	gtpChannel chan []byte
 
@@ -180,6 +183,8 @@ func NewGnb(config *model.GnbConfig, gnbLogger *logger.GnbLogger) *Gnb {
 		addressToUe:           sync.Map{},
 		imsiTodlTeidAndUeType: sync.Map{},
 		imsiReadyChans:        sync.Map{},
+		pendingHandoverUes:    sync.Map{},
+		handoverOutUes:        sync.Map{},
 
 		ranUeNgapIdGenerator: NewRanUeNgapIdGenerator(),
 		teidGenerator:        NewTeidGenerator(),
@@ -307,20 +312,7 @@ func (g *Gnb) Start(ctx context.Context) error {
 				continue
 			}
 			g.RanLog.Infof("New UE connection accepted from: %v", conn.RemoteAddr())
-			ranUe, err := NewRanUe(conn, g.ranUeNgapIdGenerator)
-			if err != nil {
-				g.RanLog.Errorf("Error creating RAN UE: %v", err)
-				if closeErr := conn.Close(); closeErr != nil {
-					g.RanLog.Errorf("Error closing UE connection: %v", closeErr)
-				}
-				continue
-			}
-			if g.staticNrdc {
-				ranUe.ActivateNrdc()
-			}
-
-			g.ranUeConns.Store(ranUe.GetRanUeId(), ranUe)
-			go g.handleRanConnection(ctx, ranUe)
+			go g.handleNewRanConnection(ctx, conn)
 		}
 	}()
 
@@ -503,11 +495,11 @@ func (g *Gnb) setupN2() error {
 	return nil
 }
 
-func (g *Gnb) setupN1(ranUe *RanUe) error {
+func (g *Gnb) setupN1(ranUe *RanUe, ueRegistrationRequest []byte) error {
 	g.RanLog.Infoln("Setting up N1")
 
 	// ue initialization
-	if err := g.processUeInitialization(ranUe); err != nil {
+	if err := g.processUeInitialization(ranUe, ueRegistrationRequest); err != nil {
 		return fmt.Errorf("error process ue initialization: %v", err)
 	}
 
@@ -612,29 +604,71 @@ func (g *Gnb) startRanDataPlaneServer() error {
 	return nil
 }
 
-func (g *Gnb) handleRanConnection(ctx context.Context, ranUe *RanUe) {
-	defer func() {
-		if err := ranUe.GetN1Conn().Close(); err != nil {
-			g.RanLog.Errorf("Error closing UE connection: %v", err)
+func (g *Gnb) handleNewRanConnection(ctx context.Context, conn net.Conn) {
+	buffer := make([]byte, 1024)
+	n, err := conn.Read(buffer)
+	if err != nil {
+		g.RanLog.Errorf("Error reading first message from UE %v: %v", conn.RemoteAddr(), err)
+		if closeErr := conn.Close(); closeErr != nil {
+			g.RanLog.Errorf("Error closing UE connection: %v", closeErr)
 		}
-		g.RanLog.Infof("Closed UE connection from: %v", ranUe.GetN1Conn().RemoteAddr())
-		if err := ranUe.Release(g.ranUeNgapIdGenerator, g.teidGenerator); err != nil {
-			g.RanLog.Errorf("Error releasing RAN UE: %v", err)
-		}
-		g.ranUeConns.Delete(ranUe.GetRanUeId())
-	}()
+		return
+	}
+	firstMessage := make([]byte, n)
+	copy(firstMessage, buffer[:n])
 
-	if err := g.setupN1(ranUe); err != nil {
+	if strings.HasPrefix(string(firstMessage), constant.UE_HANDOVER_COMPLETE) {
+		imsi := strings.TrimSpace(strings.TrimPrefix(string(firstMessage), constant.UE_HANDOVER_COMPLETE))
+		g.handleHandoverInConnection(ctx, conn, imsi)
+		return
+	}
+
+	ranUe, err := NewRanUe(conn, g.ranUeNgapIdGenerator)
+	if err != nil {
+		g.RanLog.Errorf("Error creating RAN UE: %v", err)
+		if closeErr := conn.Close(); closeErr != nil {
+			g.RanLog.Errorf("Error closing UE connection: %v", closeErr)
+		}
+		return
+	}
+	if g.staticNrdc {
+		ranUe.ActivateNrdc()
+	}
+
+	g.ranUeConns.Store(ranUe.GetRanUeId(), ranUe)
+	g.handleRanConnection(ctx, ranUe, firstMessage)
+}
+
+func (g *Gnb) handleRanConnection(ctx context.Context, ranUe *RanUe, registrationRequest []byte) {
+	defer g.closeRanConnection(ranUe)
+
+	if err := g.setupN1(ranUe, registrationRequest); err != nil {
 		g.RanLog.Errorf("Error setting up N1: %v", err)
 		return
 	}
 	g.GtpLog.Debugf("DL TEID: %s, UL TEID: %s", hex.EncodeToString(ranUe.GetDlTeid()), hex.EncodeToString(ranUe.GetUlTeid()))
 
+	g.waitUeRelease(ctx, ranUe)
+}
+
+func (g *Gnb) waitUeRelease(ctx context.Context, ranUe *RanUe) {
 	if err := g.releaseN1(ranUe); err != nil {
+		if ranUe.GetHandoverState() == HandoverStateHandedOut {
+			g.RanLog.Infof("UE %s left by handover", ranUe.GetMobileIdentityIMSI())
+			return
+		}
 		g.RanLog.Errorf("Error releasing N1: %v", err)
 		return
 	}
 	g.RanLog.Infof("UE %s N1 released", ranUe.GetMobileIdentityIMSI())
+}
+
+func (g *Gnb) closeRanConnection(ranUe *RanUe) {
+	if err := ranUe.GetN1Conn().Close(); err != nil && !errors.Is(err, net.ErrClosed) {
+		g.RanLog.Errorf("Error closing UE connection: %v", err)
+	}
+	g.RanLog.Infof("Closed UE connection from: %v", ranUe.GetN1Conn().RemoteAddr())
+	g.releaseUeLocally(ranUe)
 }
 
 func (g *Gnb) startDataPlaneProcessor() {
@@ -758,17 +792,11 @@ func (g *Gnb) relayUplinkNas(ranUe *RanUe, label string) error {
 	return nil
 }
 
-func (g *Gnb) processUeInitialization(ranUe *RanUe) error {
+func (g *Gnb) processUeInitialization(ranUe *RanUe, ueRegistrationRequest []byte) error {
 	g.RanLog.Infoln("Processing UE initialization")
 
-	// receive ue registration request from UE and send to AMF
-	ueRegistrationRequest := make([]byte, 1024)
-	n, err := ranUe.GetN1Conn().Read(ueRegistrationRequest)
-	if err != nil {
-		return fmt.Errorf("error receive ue registration request from UE: %v", err)
-	}
-	g.NasLog.Tracef("Received %d bytes of UE registration request from UE", n)
-	ueRegistrationRequest = ueRegistrationRequest[:n]
+	// send ue registration request to AMF
+	g.NasLog.Tracef("Received %d bytes of UE registration request from UE", len(ueRegistrationRequest))
 
 	gmmMessage, err := nasMessage.ParseGMM(ueRegistrationRequest)
 	if err != nil {
@@ -779,6 +807,7 @@ func (g *Gnb) processUeInitialization(ranUe *RanUe) error {
 		return fmt.Errorf("error decode ue registration request from UE: unexpected message type %T", gmmMessage)
 	}
 	ranUe.SetMobileIdentity5GS(registrationRequest.MobileId5GS)
+	ranUe.SetUeSecurityCapabilities(buildUeSecurityCapabilities(registrationRequest.UESecCapability))
 	g.NasLog.Debugf("Receive UE %s registration request from UE", ranUe.GetMobileIdentityIMSI())
 
 	ueInitialMessage, err := getInitialUeMessage(ranUe.GetRanUeId(), ueRegistrationRequest, g.plmnId, g.tai, g.gnbId)
@@ -787,7 +816,8 @@ func (g *Gnb) processUeInitialization(ranUe *RanUe) error {
 	}
 	g.NgapLog.Tracef("Get initial UE message: %+v", ueInitialMessage)
 
-	if n, err = g.n2Conn.Write(ueInitialMessage); err != nil {
+	n, err := g.n2Conn.Write(ueInitialMessage)
+	if err != nil {
 		return fmt.Errorf("error send initial ue message to AMF: %v", err)
 	}
 	g.NgapLog.Tracef("Sent %d bytes of initial UE message to AMF", n)
@@ -985,6 +1015,12 @@ func (g *Gnb) initApiRoutes() util.Routes {
 			Pattern:     constant.API_GNB_UE_NRDC,
 			HandlerFunc: withLogging("Console GNB UE NRDC Modify", g.ApiLog, g.handleConsoleGnbUeNrdcModify),
 		},
+		{
+			Name:        "Console GNB UE Handover",
+			Method:      constant.API_GNB_UE_HANDOVER_METHOD,
+			Pattern:     constant.API_GNB_UE_HANDOVER,
+			HandlerFunc: withLogging("Console GNB UE Handover", g.ApiLog, g.handleConsoleGnbUeHandover),
+		},
 	}
 }
 
@@ -1045,6 +1081,14 @@ func (g *Gnb) handleConsoleGnbInfo(c *gin.Context) {
 
 			RanUeList: ranUeList,
 			XnUeList:  xnUeList,
+
+			XnInterface: consoleModel.XnInterfaceInfo{
+				Enable:     g.xnInterface.enable,
+				ListenIp:   g.xnInterface.xnListenIp,
+				ListenPort: g.xnInterface.xnListenPort,
+				DialIp:     g.xnInterface.xnDialIp,
+				DialPort:   g.xnInterface.xnDialPort,
+			},
 		},
 	})
 }
@@ -1071,6 +1115,13 @@ func (g *Gnb) handleConsoleGnbUeNrdcModify(c *gin.Context) {
 		g.ApiLog.Warnf("UE %s not found", request.Imsi)
 		c.JSON(http.StatusNotFound, consoleModel.ConsoleGnbUeNrdcModifyResponse{
 			Message: fmt.Sprintf("UE %s not found", request.Imsi),
+		})
+		return
+	}
+	if state := ranUe.GetHandoverState(); state != HandoverStateNone {
+		g.ApiLog.Warnf("UE %s is in handover state %s", request.Imsi, state)
+		c.JSON(http.StatusConflict, consoleModel.ConsoleGnbUeNrdcModifyResponse{
+			Message: fmt.Sprintf("UE %s is in handover, NRDC modify is not allowed", request.Imsi),
 		})
 		return
 	}

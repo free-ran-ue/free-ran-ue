@@ -65,3 +65,29 @@
   border-color: #2563eb;
   box-shadow: 0 0 0 1px #2563eb;
 }
+
+.select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  background: white;
+}
+
+.select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 1px #2563eb;
+}
+
+.value {
+  font-size: 0.875rem;
+  color: #334155;
+}
+
+.hint {
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+  color: #64748b;
+}

@@ -1,7 +1,9 @@
 package gnb
 
 import (
+	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"strings"
@@ -59,6 +61,12 @@ func (d *ngapDispatcher) dispatch(g *Gnb, ngapRaw []byte) {
 	case *message.PDUSessionResourceModifyConfirm:
 		g.NgapLog.Debugln("Processing NGAP PDU Session Resource Modify Indication")
 		d.pduSessionResourceModifyIndicationProcessor(g, msg, ngapRaw)
+	case *message.PathSwitchRequestAcknowledge:
+		g.NgapLog.Debugln("Processing NGAP Path Switch Request Acknowledge")
+		d.pathSwitchRequestAcknowledgeProcessor(g, msg)
+	case *message.PathSwitchRequestFailure:
+		g.NgapLog.Debugln("Processing NGAP Path Switch Request Failure")
+		d.pathSwitchRequestFailureProcessor(g, msg)
 	default:
 		g.NgapLog.Warnf("Unknown NGAP PDU message: %T", ngapMsg)
 	}
@@ -345,4 +353,66 @@ func (d *ngapDispatcher) pduSessionResourceModifyIndicationProcessor(g *Gnb, msg
 	}
 
 	util.SignalComplete(ranUe.GetPduSessionModifyIndicationCompleteChan())
+}
+
+func signalPathSwitchResult(ranUe *RanUe, result error) {
+	select {
+	case ranUe.GetPathSwitchResultChan() <- result:
+	default:
+	}
+}
+
+func (d *ngapDispatcher) pathSwitchRequestAcknowledgeProcessor(g *Gnb, msg *message.PathSwitchRequestAcknowledge) {
+	if msg.AMFUENGAPID == nil || msg.RANUENGAPID == nil {
+		g.NgapLog.Errorf("Error path switch request acknowledge: missing mandatory IE")
+		return
+	}
+
+	amfUeNgapId := msg.AMFUENGAPID.Value
+	ranUeNgapId := msg.RANUENGAPID.Value
+
+	ueValue, exist := g.ranUeConns.Load(ranUeNgapId)
+	if !exist {
+		g.NgapLog.Errorf("Error path switch request acknowledge: Ran UE with ranUeNgapId %d not found", ranUeNgapId)
+		return
+	}
+	ranUe := ueValue.(*RanUe)
+
+	if ranUe.GetAmfUeId() != amfUeNgapId {
+		g.NgapLog.Errorf("Error path switch request acknowledge: Ran UE with ranUeNgapId %d has amfUeNgapId %d, expected %d", ranUeNgapId, ranUe.GetAmfUeId(), amfUeNgapId)
+		signalPathSwitchResult(ranUe, fmt.Errorf("amfUeNgapId mismatch: got %d, expected %d", amfUeNgapId, ranUe.GetAmfUeId()))
+		return
+	}
+
+	ulTeid, err := ulTeidFromPathSwitchRequestAcknowledge(msg, constant.PDU_SESSION_ID)
+	if err != nil {
+		g.NgapLog.Errorf("Error path switch request acknowledge: %v", err)
+		signalPathSwitchResult(ranUe, err)
+		return
+	}
+	if ulTeid != nil {
+		ranUe.SetUlTeid(ulTeid)
+		g.NgapLog.Debugf("UE %s UL TEID updated to %s by path switch", ranUe.GetMobileIdentityIMSI(), hex.EncodeToString(ulTeid))
+	}
+
+	g.NgapLog.Infof("UE %s path switch acknowledged by AMF", ranUe.GetMobileIdentityIMSI())
+	signalPathSwitchResult(ranUe, nil)
+}
+
+func (d *ngapDispatcher) pathSwitchRequestFailureProcessor(g *Gnb, msg *message.PathSwitchRequestFailure) {
+	if msg.RANUENGAPID == nil {
+		g.NgapLog.Errorf("Error path switch request failure: missing mandatory IE")
+		return
+	}
+
+	ranUeNgapId := msg.RANUENGAPID.Value
+	ueValue, exist := g.ranUeConns.Load(ranUeNgapId)
+	if !exist {
+		g.NgapLog.Errorf("Error path switch request failure: Ran UE with ranUeNgapId %d not found", ranUeNgapId)
+		return
+	}
+	ranUe := ueValue.(*RanUe)
+
+	g.NgapLog.Errorf("UE %s path switch rejected by AMF", ranUe.GetMobileIdentityIMSI())
+	signalPathSwitchResult(ranUe, fmt.Errorf("path switch request failure from AMF"))
 }

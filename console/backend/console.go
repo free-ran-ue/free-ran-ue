@@ -147,6 +147,12 @@ func (cs *console) initRoutes() util.Routes {
 			Pattern:     "/gnb/ue/nrdc",
 			HandlerFunc: withLogging("Console GNB UE NRDC Modify", cs.GnbLog, cs.handleConsoleGnbUeNrdcModify),
 		},
+		{
+			Name:        "Console GNB UE Handover",
+			Method:      http.MethodPost,
+			Pattern:     "/gnb/ue/handover",
+			HandlerFunc: withLogging("Console GNB UE Handover", cs.GnbLog, cs.handleConsoleGnbUeHandover),
+		},
 	}
 }
 

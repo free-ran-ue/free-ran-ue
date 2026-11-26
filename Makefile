@@ -1,4 +1,4 @@
-.PHONY: all bin lint tidy console console-init ns-up ns-down ns-ran ns-ue dc-ns-up dc-ns-down dc-ns-mran dc-ns-sran dc-ns-ue
+.PHONY: all bin lint tidy console console-init ns-up ns-down ns-ran ns-ue dc-ns-up dc-ns-down dc-ns-mran dc-ns-sran dc-ns-ue ho-ns-up ho-ns-down ho-ns-ran1 ho-ns-ran2 ho-ns-ue
 
 .DEFAULT_GOAL := bin
 
@@ -55,3 +55,19 @@ dc-ns-sran:
 
 dc-ns-ue:
 	./script/namespace-script/free-ran-ue-dc-namespace.sh ue-ns
+
+# Handover namespace
+ho-ns-up:
+	./script/namespace-script/free-ran-ue-ho-namespace.sh up
+
+ho-ns-down:
+	./script/namespace-script/free-ran-ue-ho-namespace.sh down
+
+ho-ns-ran1:
+	./script/namespace-script/free-ran-ue-ho-namespace.sh ran1-ns
+
+ho-ns-ran2:
+	./script/namespace-script/free-ran-ue-ho-namespace.sh ran2-ns
+
+ho-ns-ue:
+	./script/namespace-script/free-ran-ue-ho-namespace.sh ue-ns

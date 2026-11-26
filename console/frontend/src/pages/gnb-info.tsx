@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import styles from './css/gnb-info.module.css'
 import { useGnb } from '../context/gnbContext'
@@ -8,6 +9,8 @@ import { gnbApi } from '../apiCfg'
 import { useNotifications } from '../hooks/useNotifications'
 import ErrorBox from '../components/errorBox/errorBox'
 import SuccessBox from '../components/successBox/successBox'
+import HandoverModal from '../components/gnb/handover-modal'
+import type { GnbWithConnection } from '../context/gnbContext'
 
 export default function GnbInfo() {
   const { gnbId } = useParams()
@@ -16,6 +19,8 @@ export default function GnbInfo() {
   const { successes, errors, addSuccess, addError, removeNotification } = useNotifications()
 
   const gnb = gnbList.find(gnb => gnb.gnbInfo?.gnbId === gnbId)
+  const [handoverImsi, setHandoverImsi] = useState<string | null>(null)
+  const [handoverSubmitting, setHandoverSubmitting] = useState(false)
 
   const updateGnb = async () => {
     for (const gnb of gnbList) {
@@ -69,6 +74,41 @@ export default function GnbInfo() {
     }
   }
 
+  const openHandover = (imsi: string) => {
+    updateGnb()
+    setHandoverImsi(imsi)
+  }
+
+  const handleHandover = async (source: GnbWithConnection, imsi: string, target: GnbWithConnection) => {
+    setHandoverSubmitting(true)
+    try {
+      const response = await gnbApi.apiConsoleGnbUeHandoverPost({
+        ip: source.connection?.ip || '',
+        port: source.connection?.port || 0,
+        imsi: imsi,
+        targetIp: target.connection?.ip || '',
+        targetPort: target.connection?.port || 0
+      }, {
+        headers: {
+          'Authorization': localStorage.getItem('token')
+        }
+      })
+
+      addSuccess(response.data.message || `UE ${imsi} handed over to ${target.gnbInfo?.gnbName}`)
+      setHandoverImsi(null)
+    } catch (error: any) {
+      addError(error.response?.data?.message || `Failed to hand over UE ${imsi}`)
+      if (error.response?.status === 401) {
+        setTimeout(() => {
+          navigate('/login')
+        }, 2000)
+      }
+    } finally {
+      setHandoverSubmitting(false)
+      updateGnb()
+    }
+  }
+
   if (!gnb) {
     return (
       <div className={styles.container}>
@@ -98,6 +138,14 @@ export default function GnbInfo() {
         errors={errors}
         onClose={removeNotification}
         duration={5000}
+      />
+      <HandoverModal
+        isOpen={handoverImsi !== null}
+        onClose={() => { if (!handoverSubmitting) setHandoverImsi(null) }}
+        sourceGnb={gnb}
+        imsi={handoverImsi || ''}
+        submitting={handoverSubmitting}
+        onSubmit={target => handleHandover(gnb, handoverImsi!, target)}
       />
       <div className={styles.container}>
         <Sidebar />
@@ -144,6 +192,7 @@ export default function GnbInfo() {
                     <th>No.</th>
                     <th>UE</th>
                     <th>DC-status</th>
+                    <th>Handover</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -158,6 +207,16 @@ export default function GnbInfo() {
                             handleChangeNrdcIndicator(gnb.gnbInfo?.gnbId!, gnb.connection?.ip!, gnb.connection?.port!, ue.imsi!, ue.nrdcIndicator!)
                           }}
                         />
+                      </td>
+                      <td>
+                        <Button
+                          variant="secondary"
+                          disabled={ue.nrdcIndicator || false}
+                          title={ue.nrdcIndicator ? 'Only single connection UE can be handed over, turn off DC first' : 'Hand over this UE to another gNB'}
+                          onClick={() => openHandover(ue.imsi!)}
+                        >
+                          Handover
+                        </Button>
                       </td>
                     </tr>
                   ))}

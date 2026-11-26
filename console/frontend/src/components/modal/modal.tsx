@@ -8,6 +8,8 @@ interface ModalProps {
   title: string
   children: ReactNode
   onSubmit?: () => void
+  submitLabel?: string
+  submitDisabled?: boolean
 }
 
 export default function Modal({ 
@@ -15,7 +17,9 @@ export default function Modal({
   onClose, 
   title, 
   children,
-  onSubmit 
+  onSubmit,
+  submitLabel = 'Submit',
+  submitDisabled = false
 }: ModalProps) {
   if (!isOpen) return null
 
@@ -33,8 +37,8 @@ export default function Modal({
             Cancel
           </Button>
           {onSubmit && (
-            <Button onClick={onSubmit}>
-              Submit
+            <Button onClick={onSubmit} disabled={submitDisabled}>
+              {submitLabel}
             </Button>
           )}
         </div>

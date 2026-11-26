@@ -22,7 +22,7 @@ func readAndDecodeNas[T message.Message](u *Ue, label string) (T, error) {
 	var zero T
 
 	buf := make([]byte, 1024)
-	n, err := u.ranControlPlaneConn.Read(buf)
+	n, err := u.getRanControlPlaneConn().Read(buf)
 	if err != nil {
 		return zero, fmt.Errorf("error read %s: %+v", label, err)
 	}
