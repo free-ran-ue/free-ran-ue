@@ -69,6 +69,11 @@ jobs:
           cd $COMPOSE_REPO_NAME
           ./script/integration-test-script/integration-test.sh ulcl
 
+      - name: Run test Handover
+        run: |
+          cd $COMPOSE_REPO_NAME
+          ./script/integration-test-script/integration-test.sh handover
+
       - name: Clean up docker resources
         if: always()
         run: |
