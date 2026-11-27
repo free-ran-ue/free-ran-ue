@@ -69,7 +69,7 @@ jobs:
           cd $COMPOSE_REPO_NAME
           ./script/integration-test-script/integration-test.sh ulcl
 
-      - name: Run test Handover
+      - name: Run test handover
         run: |
           cd $COMPOSE_REPO_NAME
           ./script/integration-test-script/integration-test.sh handover
