@@ -179,7 +179,7 @@ func getNasRegistrationCompleteMessage() *message.RegComplete {
 func buildPduSessionEstablishmentRequest(pduSessionId uint8) ([]byte, error) {
 	pduSessionEstablishmentRequest := &message.PDUSessEstReq{
 		PDUSessId: pduSessionId,
-		PTI:       0x00,
+		PTI:       0x01,
 		IntegrityProtectionMaxDataRate: &ie.IntegrityProtectionMaxDataRate{
 			Uplink:   0xff,
 			Downlink: 0xff,
