@@ -6,10 +6,10 @@ type GnbConfig struct {
 }
 
 type GnbIE struct {
-	AmfN2Ip string `yaml:"amfN2Ip" valid:"required"`
-	RanN2Ip string `yaml:"ranN2Ip" valid:"required"`
-	UpfN3Ip string `yaml:"upfN3Ip" valid:"required"`
-	RanN3Ip string `yaml:"ranN3Ip" valid:"required"`
+	AmfN2Ip N2IPList `yaml:"amfN2Ip" valid:"required"`
+	RanN2Ip N2IPList `yaml:"ranN2Ip" valid:"required"`
+	UpfN3Ip string   `yaml:"upfN3Ip" valid:"required"`
+	RanN3Ip string   `yaml:"ranN3Ip" valid:"required"`
 
 	RanControlPlaneIp string `yaml:"ranControlPlaneIp" valid:"required"`
 	RanDataPlaneIp    string `yaml:"ranDataPlaneIp" valid:"required"`
